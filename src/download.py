@@ -40,7 +40,7 @@ import re
 import sys
 import time
 import urllib.request as u
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -272,7 +272,7 @@ def main():
                     print(f"  [FAIL] existing tb-{spec['id']}.json: {problems}")
                 infos[spec["id"]] = info
             if ok:
-                mtime = datetime.fromtimestamp(present["M602201"].stat().st_mtime, tz=timezone.utc).isoformat(timespec="seconds")
+                mtime = datetime.fromtimestamp(present["M602201"].stat().st_mtime).astimezone().isoformat(timespec="seconds")
                 write_manifest(infos, mtime)
         return
 
@@ -302,7 +302,7 @@ def main():
         print(f"  ok: {info['bytes']} bytes · {info['current_rows']}/{info['rows']} current rows · "
               f"coverage {info['coverage_min']} → {info['coverage_max']} · updated {info['data_last_updated']}")
 
-    write_manifest(infos, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    write_manifest(infos, datetime.now().astimezone().isoformat(timespec="seconds"))
 
 
 if __name__ == "__main__":

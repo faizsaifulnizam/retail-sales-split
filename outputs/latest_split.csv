@@ -1,0 +1,21 @@
+series_group,industry,latest_period,yoy_volume_pct,yoy_prices_pct,sa_mom_volume_pct,sa_mom_prices_pct,prev_yoy_volume_pct,prev_yoy_prices_pct,weight_2017_pct,weight_2025_pct,contrib_prices_pp,contrib_volume_approx_pp,note
+fb,Cafes,2026-07-01,-7.3,-6.42,-1.44,-0.14,-6.47,-5.57,10.6,10.0,-0.688,-0.781,
+fb,Fast Food Outlets,2026-07-01,2.81,4.56,5.28,5.78,-0.58,1.25,12.7,9.8,0.453,0.279,
+fb,Food Caterers,2026-07-01,-0.44,0.27,1.45,1.45,5.83,5.83,11.4,10.2,0.028,-0.047,
+fb,Food Courts & Other Eating Places,2026-07-01,-8.78,-6.56,-1.9,-1.3,-7.6,-5.6,24.1,22.7,-1.531,-2.049,
+fb,Restaurants,2026-07-01,-1.56,-0.26,0.19,0.41,-3.43,-2.24,41.2,47.3,-0.12,-0.711,
+fb,Total,2026-07-01,-3.26,-1.86,0.16,0.63,-3.45,-2.29,,,,,"F&B services — a separate index, never combined with retail"
+retail,Computer & Telecommunications Equipment,2026-07-01,,,,,,,5.5,6.3,,,monthly index series ends 1996-08 (publisher gap); quarterly tables carry it to 2026 Q2; release quotes +5.1% YoY (current prices)
+retail,"Cosmetics, Toiletries & Medical Goods",2026-07-01,2.39,4.49,-2.4,-2.68,5.75,8.69,6.2,6.6,0.288,0.151,
+retail,Department Stores,2026-07-01,-4.78,-3.49,5.36,4.56,-11.22,-9.78,6.2,4.3,-0.136,-0.185,
+retail,Food & Alcohol,2026-07-01,-8.84,-5.08,-2.29,-4.48,-5.08,-1.16,2.1,4.6,-0.232,-0.401,
+retail,Furniture & Household Equipment,2026-07-01,0.5,1.26,0.36,0.15,-0.15,0.21,7.5,7.3,0.09,0.035,
+retail,Mini-Marts & Convenience Stores,2026-07-01,-3.93,-1.45,-1.16,-1.08,-3.22,-0.6,4.2,3.3,-0.049,-0.132,
+retail,"Motor Vehicles, Parts & Accessories",2026-07-01,-1.79,1.35,2.42,2.06,0.39,3.59,18.1,14.8,0.217,-0.286,
+retail,Petrol Service Stations,2026-07-01,-14.53,-1.05,-5.58,-7.17,-8.31,7.95,4.3,4.8,-0.054,-0.738,
+retail,Recreational Goods,2026-07-01,14.08,13.92,9.53,7.51,6.0,7.58,1.5,1.9,0.243,0.241,
+retail,Supermarkets & Hypermarkets,2026-07-01,-4.83,-2.12,4.33,4.26,4.28,7.24,14.4,16.0,-0.37,-0.837,
+retail,Total,2026-07-01,-1.28,1.46,0.4,0.88,1.01,4.02,,,,,
+retail,"Total (Excluding Motor Vehicles, Parts & Accessories)",2026-07-01,,1.49,,,,4.11,,,,,value series (S$M per month) — YoY at current prices; no SA series (release quotes SA MoM +0.7)
+retail,Watches & Jewellery,2026-07-01,7.79,11.15,1.13,4.03,7.86,10.58,9.0,11.6,1.207,0.839,
+retail,Wearing Apparel & Footwear,2026-07-01,1.29,2.28,1.96,1.59,-1.36,-1.83,9.8,10.9,0.237,0.134,

@@ -1,0 +1,9 @@
+metric,value,note
+basket_yoy_2025_weights_pct,1.66,"11 monthly industries, same indices, 2025-based weights"
+basket_yoy_2017_weights_pct,1.45,same basket re-aggregated under 2017-based weights
+weight_effect_pp,0.21,"weights only, holding industry indices fixed"
+motor_vehicles_weight_2017_pct,18.1,info paper Chart 1
+motor_vehicles_weight_2025_pct,14.8,info paper Chart 1 (share fell 3.3pp)
+motor_vehicles_contrib_old_weight_pp,0.266,MV contribution to +1.46% under old weight
+motor_vehicles_contrib_new_weight_pp,0.217,MV contribution under new weight
+limit,,"SSIC 2025 definitional moves (motorcycles into MV; musical instruments into Rec; Cafes split in FSI) are not reversible from published data; pre-2026 values are linked, not recalculated"

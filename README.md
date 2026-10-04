@@ -6,11 +6,13 @@
 
 # retail-sales-split
 
-[![CI](https://github.com/faizsaifulnizam/retail-sales-split/actions/workflows/ci.yml/badge.svg)](https://github.com/faizsaifulnizam/retail-sales-split/actions/workflows/ci.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-8A6EAF.svg)](LICENSE) ![Python 3.12](https://img.shields.io/badge/Python-3.12-2E7D6B.svg) ![DuckDB](https://img.shields.io/badge/analytics-DuckDB-22607B.svg) [![data: SingStat Table Builder](https://img.shields.io/badge/data-SingStat%20Table%20Builder-14293D.svg)](https://tablebuilder.singstat.gov.sg/table/TS/M602201) [![dashboard-ready extract](https://img.shields.io/badge/dashboard--ready-extract%20included-8A6EAF.svg)](outputs/tableau_extract.csv)
+[![CI](https://github.com/faizsaifulnizam/retail-sales-split/actions/workflows/ci.yml/badge.svg)](https://github.com/faizsaifulnizam/retail-sales-split/actions/workflows/ci.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-8A6EAF.svg)](LICENSE) ![Python 3.12](https://img.shields.io/badge/Python-3.12-2E7D6B.svg) ![DuckDB](https://img.shields.io/badge/analytics-DuckDB-22607B.svg) [![data: SingStat Table Builder](https://img.shields.io/badge/data-SingStat%20Table%20Builder-14293D.svg)](https://tablebuilder.singstat.gov.sg/table/TS/M602201) [![Tableau Public dashboard](https://img.shields.io/badge/Tableau%20Public-live%20dashboard-8A6EAF.svg)](https://public.tableau.com/views/SingaporeRetail/Singaporeretailsplitandrebased)
 
 > **Answer:** July 2026 retail **value growth was concentrated in Watches & Jewellery, while volume weakness spanned six observed industries**. Chained-volume sales fell **−1.3% year-on-year**; sales value (current prices) rose **+1.5%**. **Six of eleven** industries with current monthly indices declined in volume, representing **47.8% of total 2025-base weight**; the observed subset covers **86.1%**. Supermarkets and petrol supplied the largest approximate volume drags (**−0.84 and −0.74 pp**), partly offset by watches (**+0.84 pp**). On value, **Watches & Jewellery contributed +1.21 pp** against total growth of **+1.46%**. The old/new weight swap raises a **renormalized 11-industry subset's** growth by **+0.21 pp**; it does **not** measure the rebase's effect on the published headline. Retail only; F&B services stay separate.
 
 **Status:** built 2026-10-04; July 2026 snapshot. Local review-remediation verification and publication receipts are tracked separately in [`docs/review-remediation.md`](docs/review-remediation.md). Part of a six-repo series on Singapore's public data.
+
+**[Open the interactive Tableau dashboard →](https://public.tableau.com/views/SingaporeRetail/Singaporeretailsplitandrebased)** · [Dashboard notes and verification](bi/README.md). Published July 2026 snapshot; not an automatically refreshing report.
 
 ## Key numbers (all reproducible)
 
@@ -34,7 +36,7 @@
 | <a href="reports/figures/f2_split.png"><picture><source media="(prefers-color-scheme: dark)" srcset="reports/figures/f2_split-dark.png"><source media="(prefers-color-scheme: light)" srcset="reports/figures/f2_split.png"><img src="reports/figures/f2_split.png" alt="Ranked observed-industry split — volume vs current prices — with fixed-weight contribution estimates"></picture></a> | **The split** — the 11 observed industries ranked by their volume move, beside their calculated value contributions; residual kept separate ([`docs/decision_memo.md`](docs/decision_memo.md)). |
 | <a href="reports/figures/f3_watch.png"><picture><source media="(prefers-color-scheme: dark)" srcset="reports/figures/f3_watch-dark.png"><source media="(prefers-color-scheme: light)" srcset="reports/figures/f3_watch.png"><img src="reports/figures/f3_watch.png" alt="Small multiples — Supermarkets, Watches &amp; Jewellery, Petrol Service Stations"></picture></a> | **Three industries to watch** — Supermarkets (largest approximate volume drag), Watches & Jewellery (largest value contributor), Petrol (volume −14.5%, value −1.05%; not flat value). |
 
-*Full size in [`reports/figures/`](reports/figures/) · write-up in [`docs/decision_memo.md`](docs/decision_memo.md) · dashboard-ready extract in [`outputs/tableau_extract.csv`](outputs/tableau_extract.csv) (Tableau Public build remains a planned guided step, [`bi/README.md`](bi/README.md)).*
+*Full size in [`reports/figures/`](reports/figures/) · write-up in [`docs/decision_memo.md`](docs/decision_memo.md) · dashboard-ready extract in [`outputs/tableau_extract.csv`](outputs/tableau_extract.csv) ([published Tableau Public dashboard](https://public.tableau.com/views/SingaporeRetail/Singaporeretailsplitandrebased); scope and checks in [`bi/README.md`](bi/README.md)).*
 
 ## The question
 
@@ -128,7 +130,7 @@ Use `python src/download.py --force`, then `build_dataset → audit → analysis
 
 ## Out of scope
 
-A retail forecast, company-level analysis and macro consumption model. Tableau Public is a separate, planned guided build; no finished dashboard or publication is claimed.
+A retail forecast, company-level analysis and macro consumption model. The published Tableau dashboard is a fixed July 2026 snapshot, not a live data feed or an exact historical contribution decomposition.
 
 ## Licence
 

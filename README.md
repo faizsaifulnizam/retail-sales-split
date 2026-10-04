@@ -136,6 +136,6 @@ Code: MIT. Data: Singapore Open Data Licence — © Singapore Department of Stat
 
 ---
 
-*Part of a six-repo series on Singapore's public data — the other five repos go live as they're built:* **[hdb-resale-mart](https://github.com/faizsaifulnizam/hdb-resale-mart)** · **[card-book-quality](https://github.com/faizsaifulnizam/card-book-quality)** · **[coe-quota-premium](https://github.com/faizsaifulnizam/coe-quota-premium)** · **coe-category-break · hdb-lease-slope**
+*Six-on-SG: six Singapore-data analyses plus one AI workflow — seven repos:* **[hdb-resale-mart](https://github.com/faizsaifulnizam/hdb-resale-mart)** · **[card-book-quality](https://github.com/faizsaifulnizam/card-book-quality)** · **[coe-quota-premium](https://github.com/faizsaifulnizam/coe-quota-premium)** · **coe-category-break · hdb-lease-slope** · **[ai-analyst-workflow](https://github.com/faizsaifulnizam/ai-analyst-workflow)** (the AI-workflow add)
 
 *If you found this useful, a star helps others find it.*

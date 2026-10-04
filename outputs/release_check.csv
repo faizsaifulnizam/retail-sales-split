@@ -1,23 +1,23 @@
 series_group,row,rel_yoy_jul26_pct,calc_yoy_jul26_pct,diff_yoy_pct,rel_sa_mom_jul26_pct,calc_sa_mom_jul26_pct,diff_sa_mom_pct,source_table,status
-retail,Total,1.5,1.46,-0.042,0.9,0.88,-0.016,M602121/M602122,match
-retail,"Total (Excluding Motor Vehicles, Parts & Accessories)",1.5,1.49,-0.01,0.7,,,"M602171 (value, excl-MV row)",match
-retail,Department Stores,-3.5,-3.49,0.011,4.6,4.56,-0.044,M602121/M602122,match
-retail,Supermarkets & Hypermarkets,-2.1,-2.12,-0.023,4.3,4.26,-0.036,M602121/M602122,match
-retail,Mini-Marts & Convenience Stores,-1.5,-1.45,0.047,-1.1,-1.08,0.022,M602121/M602122,match
-retail,Food & Alcohol,-5.1,-5.08,0.019,-4.5,-4.48,0.018,M602121/M602122,match
-retail,"Motor Vehicles, Parts & Accessories",1.4,1.35,-0.046,2.1,2.06,-0.042,M602121/M602122,match
-retail,Petrol Service Stations,-1.1,-1.05,0.05,-7.2,-7.17,0.032,M602121/M602122,match
-retail,"Cosmetics, Toiletries & Medical Goods",4.5,4.49,-0.014,-2.7,-2.68,0.024,M602121/M602122,match
-retail,Wearing Apparel & Footwear,2.3,2.28,-0.024,1.6,1.59,-0.009,M602121/M602122,match
-retail,Furniture & Household Equipment,1.3,1.26,-0.037,0.2,0.15,-0.05,M602121/M602122,match
-retail,Recreational Goods,13.9,13.92,0.017,7.5,7.51,0.009,M602121/M602122,match
-retail,Watches & Jewellery,11.1,11.15,0.047,4.0,4.03,0.03,M602121/M602122,match
-retail,Computer & Telecommunications Equipment,5.1,,,-4.7,,,not in monthly Table Builder tables (release only),match
-retail,Optical Goods & Books,-2.2,,,0.3,,,not in monthly Table Builder tables (release only),match
-retail,Others,-4.0,,,-0.1,,,not in monthly Table Builder tables (release only),match
-fb,Total,-1.9,-1.86,0.042,0.6,0.63,0.028,M602131/M602132,match
-fb,Restaurants,-0.3,-0.26,0.035,0.4,0.41,0.015,M602131/M602132,match
-fb,Fast Food Outlets,4.6,4.56,-0.043,5.8,5.78,-0.018,M602131/M602132,match
-fb,Food Caterers,0.3,0.27,-0.034,1.4,1.45,0.047,M602131/M602132,match
-fb,Cafes,-6.4,-6.42,-0.021,-0.1,-0.14,-0.04,M602131/M602132,match
-fb,Food Courts & Other Eating Places,-6.6,-6.56,0.04,-1.3,-1.3,-0.005,M602131/M602132,match
+retail,Total,1.5,1.457842393257991,-0.04215760674200908,0.9,0.883897316219362,-0.01610268378063806,M602121/M602122,match
+retail,"Total (Excluding Motor Vehicles, Parts & Accessories)",1.5,1.4896551724137952,-0.010344827586204808,0.7,,,"M602171 (value, excl-MV row)",match
+retail,Department Stores,-3.5,-3.4892320598721716,0.010767940127828446,4.6,4.555549594978814,-0.0444504050211858,M602121/M602122,match
+retail,Supermarkets & Hypermarkets,-2.1,-2.1225507267628396,-0.022550726762839535,4.3,4.263987748379461,-0.036012251620539004,M602121/M602122,match
+retail,Mini-Marts & Convenience Stores,-1.5,-1.4531415212393428,0.046858478760657185,-1.1,-1.0778272629288432,0.022172737071156856,M602121/M602122,match
+retail,Food & Alcohol,-5.1,-5.0809800038202795,0.019019996179720167,-4.5,-4.482035064689683,0.017964935310317287,M602121/M602122,match
+retail,"Motor Vehicles, Parts & Accessories",1.4,1.3537142015755066,-0.04628579842449332,2.1,2.058227679548019,-0.04177232045198087,M602121/M602122,match
+retail,Petrol Service Stations,-1.1,-1.0502938046546006,0.04970619534539944,-7.2,-7.167947916283524,0.03205208371647661,M602121/M602122,match
+retail,"Cosmetics, Toiletries & Medical Goods",4.5,4.48629188590417,-0.013708114095829949,-2.7,-2.6757495713425117,0.0242504286574885,M602121/M602122,match
+retail,Wearing Apparel & Footwear,2.3,2.276198246825256,-0.023801753174743645,1.6,1.5905241894345945,-0.009475810565405585,M602121/M602122,match
+retail,Furniture & Household Equipment,1.3,1.2634024486774864,-0.03659755132251363,0.2,0.14995630412328875,-0.05004369587671126,M602121/M602122,match
+retail,Recreational Goods,13.9,13.917116803790929,0.017116803790928614,7.5,7.508558903684448,0.008558903684448005,M602121/M602122,match
+retail,Watches & Jewellery,11.1,11.147242873188222,0.047242873188222845,4.0,4.030167111413929,0.03016711141392925,M602121/M602122,match
+retail,Computer & Telecommunications Equipment,5.1,,,-4.7,,,not in monthly Table Builder tables (release only),not_recomputed
+retail,Optical Goods & Books,-2.2,,,0.3,,,not in monthly Table Builder tables (release only),not_recomputed
+retail,Others,-4.0,,,-0.1,,,not in monthly Table Builder tables (release only),not_recomputed
+fb,Total,-1.9,-1.8577859909174932,0.04221400908250672,0.6,0.627653682850271,0.027653682850271033,M602131/M602132,match
+fb,Restaurants,-0.3,-0.26476120379457235,0.035238796205427636,0.4,0.41476266930138284,0.014762669301382814,M602131/M602132,match
+fb,Fast Food Outlets,4.6,4.55698408395615,-0.043015916043849245,5.8,5.781933943493822,-0.018066056506177652,M602131/M602132,match
+fb,Food Caterers,0.3,0.2659828016855048,-0.03401719831449518,1.4,1.4466349152911562,0.046634915291156265,M602131/M602132,match
+fb,Cafes,-6.4,-6.4214458118810995,-0.021445811881099175,-0.1,-0.14017090467340898,-0.040170904673408975,M602131/M602132,match
+fb,Food Courts & Other Eating Places,-6.6,-6.560041299006714,0.03995870099328602,-1.3,-1.3048103800742727,-0.004810380074272702,M602131/M602132,match

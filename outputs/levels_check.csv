@@ -1,0 +1,5 @@
+metric,period,unit,release_value,calc_value,diff,status,source_table
+retail_sales,2026-07-01,SGD million,4419.0,4419.0,0.0,match,M602171
+retail_sales_excl_mv,2026-07-01,SGD million,3679.0,3679.0,0.0,match,M602171
+fb_sales,2026-07-01,SGD million,1607.0,1607.0,0.0,match,M602181
+retail_online_share,2026-07-01,%,15.4,15.4,0.0,match,M602191

@@ -1,16 +1,18 @@
 # Data audit — SingStat Retail Sales Index & F&B Services Index (repo 04)
 
-**Files:** 14 SingStat Table Builder exports in `data/raw/` (gitignored), pulled scripted on
-**2026-10-04** (`pull_manifest.json` carries SHA-256, rows, coverage, series, `dataLastUpdated`
-per table). The publisher's own stamp on every file: **Data Last Updated 07/09/2026** — the
-release of the **July 2026** monthly RSI/FSI (embargo lifted 7 Sep 2026, 1.00pm).
-Produced with `src/audit.py` (stdlib only — independent of the DuckDB pipeline by design).
+**Snapshot:** 14 SingStat Table Builder exports in `data/raw/` (gitignored), with a recorded
+**2026-10-04** pull (`pull_manifest.json` carries SHA-256, rows, coverage, series and
+`dataLastUpdated`). Publisher stamp: **07/09/2026**; latest monthly period: **July 2026**.
+Audit calculations use `src/audit.py` (stdlib, separate from DuckDB); this document is a
+reviewed snapshot, not an automatically refreshed report. Source publication provenance
+is recorded in `data/reference/README.md`; no fresh PDF authentication is claimed here.
+Updated execution receipts belong in `docs/review-remediation.md`.
 
-## Shape & units (the `[VERIFY]`s, resolved from the live tables)
+## Shape & units (recorded Table Builder snapshot)
 
 - **Coverage:** 14 tables; **35,271 cells, 0 non-numeric** (checked cell-by-cell). Monthly
-  tables run 1985 Jan → **2026 Jul** (the latest month; the next release is due on the 5th of
-  the month); quarterly tables 1985 Q1 → 2026 Q2.
+  tables run 1985 Jan → **2026 Jul**; quarterly tables 1985 Q1 → 2026 Q2.
+  Use the publisher's release calendar for the next release, not a fixed-date assumption.
 - **Units — stated per the publisher:** index tables = **index (2025 = 100)**; value tables
   (`M602171`, `M602181`) = **S$ millions per month, estimated**; online tables (`M602191`,
   `M602271`) = **% of the industry's total sales**.
@@ -46,7 +48,7 @@ Produced with `src/audit.py` (stdlib only — independent of the DuckDB pipeline
      irrelevant to the latest-month analysis, recorded in the manifest.
 - **No duplicate or missing months anywhere; every series contiguous** (checked).
 
-## The 2025 rebasing (info paper, resolved `[VERIFY]`s)
+## The 2025 rebasing (recorded info-paper transcription)
 
 Source: SingStat Information Paper *"Rebasing of the Retail Sales and Food & Beverage Services
 Indices (2025=100)"*, **March 2026**. 8th rebase of the series; released with effect from the
@@ -87,16 +89,22 @@ Courts & Other Eating Places" was **split** into Cafes and Food Courts & Other E
 index in 2025 to the average 2017-based index in 2025; the paper's worked example: 104.1 ×
 100.0/107.0 = 97.3). So **pre-2026 values in the current tables are linked values** — coherent
 for growth rates, but they are not the numbers as originally published, and the full old-base
-series is no longer published. Comparisons of the same month under old vs new base are therefore
-done here via the **weight-swap counterfactual** (`outputs/rebase_read.csv`): the same industry
-indices re-aggregated under 2017 weights vs 2025 weights — quantifying the weights' effect only,
-with the SSIC definitional moves stated as a limit (they cannot be undone from published data).
+series is no longer published. The **weight-swap sensitivity** (`outputs/rebase_read.csv`) uses the same current industry
+indices under 2017 vs 2025 weights for a **renormalized 11-industry subset**: +1.45% vs
++1.66%, a +0.21 pp difference. It excludes three industries (13.9% of new weight). This is
+not an effect on the published +1.46% headline and does not reconstruct the old-base
+headline. Linking and SSIC classification moves remain unisolated.
 
 ## Release cross-check — recomputed vs the July 2026 release
 
-The release's own tables (Table 1 RSI, Table 2 FSI, both at current prices) are transcribed in
-`data/reference/release-2026-07-tables.csv`; `src/audit.py` recomputes every comparable row from
-the raw tables. **All 19 comparable rows match within ±0.05 pt** (release rounds to 0.1 pt):
+The release-table transcription (Table 1 RSI, Table 2 FSI, current prices) is
+`data/reference/release-2026-07-tables.csv`. The audit compares **19 recomputable rows**
+with raw Table Builder data; three other rows have no monthly recomputation. Tolerance is
+**0.05 pp publication rounding + 0.001 pp index-precision allowance**, applied to
+**full-precision differences** before display rounding. One difference is about
+**0.050044 pp**; therefore “all within strict ±0.05 pp” is not accurate. This is a local
+transcription-consistency check, not fresh PDF verification. Rounded rates below are for
+reading; `outputs/release_check.csv` is the machine receipt.
 
 | Row | release YoY | recomputed | Row | release SA MoM | recomputed |
 |---|---|---|---|---|---|
@@ -120,34 +128,65 @@ the raw tables. **All 19 comparable rows match within ±0.05 pt** (release round
 | F&B Cafes | −6.4 | −6.42 | F&B Cafes | −0.1 | −0.14 |
 | F&B Food Courts & Other Eating Places | −6.6 | −6.56 | F&B Food Courts | −1.3 | −1.30 |
 
-Not recomputable from Table Builder monthly exports (release-only rows, quoted as context):
+Not recomputable from current monthly index exports (release-only rows, **`not_recomputed`**,
+not matches; quoted rates are context only):
 Computer & Telecommunications Equipment (+5.1 / −4.7), Optical Goods & Books (−2.2 / +0.3),
 Others (−4.0 / −0.1). The machine-readable version of this table is
 [`../outputs/release_check.csv`](../outputs/release_check.csv).
 
-**Also cross-checked:** value levels — retail **S$4,419M** in Jul 2026 (release: "$4.4 billion";
-excl-MV **S$3,679M** vs "$3.7 billion"); F&B **S$1,607M** vs "$1.6 billion"; online shares —
-retail 15.4% (release: 15.4%), F&B 20.9% (release: 20.9%).
+**Level/share receipt:** `outputs/levels_check.csv` checks four **transcribed expected July
+values** against Table Builder: retail **S$4,419M**, retail excl-MV **S$3,679M**, F&B
+**S$1,607M**, and retail online share **15.4%**. Schema:
+`metric,period,unit,release_value,calc_value,diff,status,source_table`. Rounded release
+billion-dollar prose is context, not a fresh PDF authentication. No separate F&B online
+share check is claimed in this four-row receipt. Excl-MV YoY is recomputable from the
+value series; its SA MoM is unavailable in these exports.
 
 ## Contribution reconciliation (weights × index moves)
 
-The published index formula is I = Σ wᵢ·Lᵢ (weights × industry indices). Recomputing the
-July 2026 total move from the 11 monthly-published industries: **Σ contributions = +1.443 index
-pts vs the published total move +1.460 pts — residual +0.017 pts** (the three industries not
-published monthly + rounding). This is what makes the contribution view defensible on current
-prices; the chained-volume series is chain-linked (previous years' weights) and its 11-industry
-sum differs by ~0.1 pts — so volume stays a growth-rate split, stated as such.
+For published weight share wᵢ, industry index Lᵢ and prior-year total I₀, the fixed-weight
+**index-point** change is wᵢ × ΔLᵢ; its **growth contribution in pp** is
+100 × wᵢ × ΔLᵢ / I₀. Exact total additivity requires compatible indices/weights and full
+coverage, which is not established for this incomplete, linked monthly series.
+
+For July 2026 retail, the 11 covered industries yield **+1.4425 index points** (≈+1.443)
+versus **+1.460 index points** total change, leaving about **+0.0175 index points**.
+In **growth-rate units**, the covered sum is **+1.440411 pp** versus **+1.457842%** total
+growth, leaving **+0.017431 pp**. Do not mix the units or call this a complete identity.
+Missing industries, linked-series aggregation and rounding can all enter the residual;
+it cannot be identified as the three missing industries' contribution alone.
+
+July's small residual is not general: June 2026 covered **+3.309328 pp** versus total
+**+4.018177%**, residual **+0.708849 pp**; May residual **+0.320072 pp**; July 2025
+**+0.438981 pp**. `outputs/contribution_reconciliation.csv` records the history with schema
+`month,series_group,covered_industries,covered_weight_pct,total_yoy_pct,covered_contrib_prices_pp,residual_prices_pp`.
+Historical calculations use current base weights on linked series, not reconstructed
+contemporaneous old-base contributions. The incomplete BI stack must show the residual
+separately, never force the components to sum to the headline.
+
+Volume fixed-weight contributions are **approximate**: July covered −1.179 pp versus
+−1.281% total, residual −0.102 pp. That residual includes missing coverage and chain-linking
+as well as rounding; it is not a universal ±0.1 pp accuracy guarantee.
 
 ## Rules chosen, before analysis (from the profile above)
 
-1. **Latest month = 2026 Jul** (the newest published); YoY = Jul 2026 vs Jul 2025 (original
-   series); MoM = Jul vs Jun 2026 (SA series only). Nothing hardcoded — the month is derived
-   from the data; the refresh recipe re-derives it.
+1. **Snapshot month = 2026 Jul**; YoY = Jul 2026 vs Jul 2025 (original); MoM = Jul vs
+   Jun 2026 (SA). Analysis derives latest from data; the audit reference, expected
+   levels/share and narrative are dated snapshot inputs requiring explicit refresh review.
 2. **Chained volume is the analytical headline**; current prices (the release basis) shown
    beside it — never mixed, both labelled.
-3. **Contribution view on current prices only** (formula exact, residual +0.017 pts); the
-   volume split is labelled a growth-rate split (chain-linked weights).
+3. **Current-price contributions are fixed-weight calculations with an explicit residual**,
+   not a proven complete identity. Volume calculations are labelled approximate.
 4. **Retail and F&B never combined**; F&B analysed separately with its own weights.
 5. **No outlier rules** — official aggregates; nothing to trim. **No forecasts.**
 6. Monthly split covers the 11 industries with current monthly data; the three release-only /
    quarterly-only industries are named, never silently dropped.
+7. Audit validation must finish before replacing any receipt; a validation failure must
+   preserve the existing output bytes. Uncomputed rows are not matches. Parent execution passed 25 pipeline regressions
+   plus six figure regressions; details are in `review-remediation.md`.
+8. Refresh requires the matching `release-YYYY-MM-tables.csv`, explicit audit reference and
+   expected-value updates, then narrative/figure/snapshot-lock review. Retain July's historic
+   anchor unless the publisher restates it; latest assertions apply only when latest is July.
+9. Stable LF CSVs are comparable for unchanged input. PNG determinism is limited to the
+   same Python/dependencies/fonts/backend and manifest-derived date; cross-platform byte
+   equality is not guaranteed.

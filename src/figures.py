@@ -1,18 +1,20 @@
 """S3 figures — code-generated, series style, light + dark (theme-adaptive). Run: python src/figures.py (repo root).
 
-Produces (reports/figures/), each as a light/dark pair for `<picture>` README embeds:
+Produces (reports/figures/ and synced docs/img/), each as a light/dark pair for `<picture>` README embeds:
   f1_headline[-dark].png   — stat cards + YoY and SA MoM history (volume vs current prices)
   f2_split[-dark].png      — ranked industry split (volume vs prices dumbbell) + contributions
   f3_watch[-dark].png      — small multiples: three industries to watch
 
-Reads the parquet via DuckDB; re-runs sql/02 so figures always match the SQL. Long titles and
+Reads history via DuckDB/sql/02 and derived CSV metrics; rejects mismatched snapshot months. Long titles and
 footnotes are width-checked at render size by pixel extent (not eyeballed); QA asserts cover
 in-bounds text, suptitle clearance and pairwise annotation overlaps. Run twice and hash-compare
 before commit (determinism receipt).
 """
 import json
+import os
+import shutil
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import matplotlib
@@ -58,7 +60,13 @@ MANIFEST = ROOT / "data/raw/pull_manifest.json"
 def _source_date():
     try:
         ts = json.loads(MANIFEST.read_text(encoding="utf-8")).get("retrieved_at", "")
-        return ts[:10] or None
+        if not ts:
+            return None
+        stamp = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        sgt = timezone(timedelta(hours=8))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=sgt)
+        return stamp.astimezone(sgt).date().isoformat()
     except Exception:
         return None
 
@@ -78,6 +86,8 @@ def assert_clear(fig, pairs, label):
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
     for a, b in pairs:
+        if hasattr(b, "get_text") and not b.get_text().strip():
+            continue
         ba, bb = a.get_window_extent(r), b.get_window_extent(r)
         ok = not ba.overlaps(bb)
         print(f"   [{'PASS' if ok else 'FAIL'}] clearance {label}")
@@ -121,9 +131,20 @@ def assert_texts_clear(fig, label):
 
 def save(fig, name):
     p = FIGDIR / name.replace(".png", T["suffix"] + ".png")
-    fig.savefig(p)
-    plt.close(fig)
-    print(f"wrote {p.as_posix()}  ({p.stat().st_size} bytes)")
+    site = ROOT / "docs/img" / p.name
+    tmp = p.with_suffix(".png.tmp")
+    site_tmp = site.with_suffix(".png.tmp")
+    site.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fig.savefig(tmp, format="png")
+        shutil.copyfile(tmp, site_tmp)
+        os.replace(tmp, p)
+        os.replace(site_tmp, site)
+    finally:
+        tmp.unlink(missing_ok=True)
+        site_tmp.unlink(missing_ok=True)
+        plt.close(fig)
+    print(f"wrote {p.as_posix()} + docs/img/{p.name}  ({p.stat().st_size} bytes)")
 
 
 def text_px(s, size_pt):
@@ -145,11 +166,14 @@ def stat_card(fig, x, y, big, label, sub, color):
     fig.text(x, y - 0.112, sub, fontsize=8.5, color=T["muted"], ha="left", va="top")
 
 
-def load_split():
+def load_split(con):
     """Derived numbers live in one home: outputs/latest_split.csv (audited; memo = CSV = README)."""
     import csv as _csv
     with (ROOT / "outputs/latest_split.csv").open(encoding="utf-8") as f:
         rows = list(_csv.DictReader(f))
+    latest = str(q(con, "SELECT max(period) FROM monthly")[0][0])
+    if not rows or any(r["latest_period"] != latest for r in rows):
+        raise ValueError(f"snapshot mismatch: latest_split.csv must match parquet month {latest}; rerun analysis")
     out = {}
     for r in rows:
         out[(r["series_group"], r["industry"])] = r
@@ -166,11 +190,12 @@ def latest_row(con, series_group, industry):
 
 def fig1_headline(con, canvas_in=9.0):
     total = latest_row(con, "retail", "Total")
-    split = load_split()
+    split = load_split(con)
     tr = split[("retail", "Total")]
     period = total[0]
     plabel = f"{period:%B %Y}"
-    title = f"Singapore retail sales, {plabel}: the value headline rose while real volumes fell"
+    title = (f"Singapore retail sales, {plabel}: value {float(tr['yoy_prices_pct']):+.1f}% vs "
+             f"chained volume {float(tr['yoy_volume_pct']):+.1f}% YoY")
     foottext = (f"{SRC} · release basis = current prices; analytical headline = chained volume (price effects removed)\n"
                 "Retail trade only — F&B services are a separate index, never mixed in · SA MoM from the SA tables")
     assert_fits(title, 12.5, "F1 title", canvas_in)
@@ -185,7 +210,7 @@ def fig1_headline(con, canvas_in=9.0):
     stat_card(fig, 0.535, 0.80, f"{float(tr['sa_mom_volume_pct']):+.1f}%", "Chained volume · MoM (SA)",
               "one-month print", T["violet"])
     stat_card(fig, 0.78, 0.80, f"{float(tr['sa_mom_prices_pct']):+.1f}%", "Current prices · MoM (SA)",
-              "release rounds to +0.9", T["petrol"])
+              "current-price activity", T["petrol"])
 
     hist = q(con, """SELECT m.period, mm.yoy_volume_pct, mm.yoy_prices_pct, mm.sa_mom_volume_pct, mm.sa_mom_prices_pct
                      FROM monthly m JOIN monthly_metrics mm
@@ -208,7 +233,8 @@ def fig1_headline(con, canvas_in=9.0):
     ax0.set_title("Year-on-year change, last 3 years (%)", fontsize=10, color=T["muted"])
     ax0.set_ylim(min(yv + yp) - 2.5, max(yv + yp) + 2.5)
     ax0.set_xlim(mdates.date2num(x0[0]) - 30, mdates.date2num(x0[-1]) + 40)
-    ax0.set_xticks([date(y, 1, 1) for y in range(2024, 2027)])
+    ax0.set_xticks([date(y, 1, 1) for y in range(x0[0].year, x0[-1].year + 1)
+                   if x0[0] <= date(y, 1, 1) <= x0[-1]])
     ax0.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
     ax1 = fig.add_axes([0.565, 0.10, 0.40, 0.475])
@@ -225,7 +251,8 @@ def fig1_headline(con, canvas_in=9.0):
     ax1.set_title("Month-on-month change, seasonally adjusted (%)", fontsize=10, color=T["muted"])
     ax1.set_ylim(min(mv + mp) - 1.5, max(mv + mp) + 1.5)
     ax1.set_xlim(mdates.date2num(x1[0]) - 30, mdates.date2num(x1[-1]) + 40)
-    ax1.set_xticks([date(2025, 1, 1), date(2026, 1, 1)])
+    ax1.set_xticks([date(y, 1, 1) for y in range(x1[0].year, x1[-1].year + 1)
+                   if x1[0] <= date(y, 1, 1) <= x1[-1]])
     ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 
     ftxt = foot(fig, foottext)
@@ -239,7 +266,7 @@ def fig1_headline(con, canvas_in=9.0):
 
 
 def fig2_split(con, canvas_in=9.0):
-    split = load_split()
+    split = load_split(con)
     rows = []
     for (g, name), r in split.items():
         if g != "retail" or name in ("Total", "Total (Excluding Motor Vehicles, Parts & Accessories)",
@@ -254,9 +281,9 @@ def fig2_split(con, canvas_in=9.0):
     tot_p = float(split[("retail", "Total")]["yoy_prices_pct"])
 
     title = f"Who carried the latest print, who dragged it — {q(con, 'SELECT max(period) FROM monthly')[0][0]:%B %Y} retail split by industry"
-    foottext = (f"Left: year-on-year change per industry — ● chained volume vs ● current prices (2025=100)\n"
-                f"Right: contribution to the +{tot_p:.2f}% headline (current prices; published formula: weight × move ÷ prior-year total)\n"
-                "Contributions exact on prices; the volume basis is a growth-rate split · 3 industries not published monthly (residual +0.017 pp)\n"
+    foottext = (f"Left: industry year-on-year change (%), chained volume vs current prices — colours identified in the legend\n"
+                f"Right: contribution to the {tot_p:+.2f}% headline (current prices; pp = 2025 weight (%) × index change ÷ prior-year total)\n"
+                "11 industries shown; 13.9% of 2025-base retail weight unobserved monthly — residual varies by month; volume split is approximate\n"
                 f"{SRC}")
     assert_fits(title, 12.5, "F2 title", canvas_in)
     assert_fits(foottext, 7.5, "F2 footnote", canvas_in)
@@ -271,28 +298,37 @@ def fig2_split(con, canvas_in=9.0):
         p = next(r[2] for r in rows if r[0] == name)
         axl.plot([v, p], [y, y], color=T["light"], lw=1.6, zorder=2)
         axl.scatter([v], [y], color=T["violet"], s=46, zorder=3)
-        axl.scatter([p], [y], color=T["petrol"], s=46, zorder=3)
+        axl.scatter([p], [y], facecolors="none", edgecolors=T["petrol"], marker="D", s=46, linewidths=1.2, zorder=3)
         # value labels flank the pair on the OUTER sides at dot height — no vertical stacking, no cross-row collisions
         if v <= p:
             axl.annotate(f"{v:+.1f}", (v, y), xytext=(-7, 0), textcoords="offset points",
-                         ha="right", va="center", fontsize=7.5, color=T["violet"])
+                         ha="right", va="center", fontsize=7.5, color=T["violet"],
+                         bbox=dict(facecolor=T["face"], edgecolor="none", pad=0.4))
             axl.annotate(f"{p:+.1f}", (p, y), xytext=(7, 0), textcoords="offset points",
-                         ha="left", va="center", fontsize=7.5, color=T["petrol"])
+                         ha="left", va="center", fontsize=7.5, color=T["petrol"],
+                         bbox=dict(facecolor=T["face"], edgecolor="none", pad=0.4))
         else:
             axl.annotate(f"{v:+.1f}", (v, y), xytext=(7, 0), textcoords="offset points",
-                         ha="left", va="center", fontsize=7.5, color=T["violet"])
+                         ha="left", va="center", fontsize=7.5, color=T["violet"],
+                         bbox=dict(facecolor=T["face"], edgecolor="none", pad=0.4))
             axl.annotate(f"{p:+.1f}", (p, y), xytext=(-7, 0), textcoords="offset points",
-                         ha="right", va="center", fontsize=7.5, color=T["petrol"])
+                         ha="right", va="center", fontsize=7.5, color=T["petrol"],
+                         bbox=dict(facecolor=T["face"], edgecolor="none", pad=0.4))
     axl.axvline(0, color=T["muted"], lw=0.9, ls=(0, (4, 3)))
     axl.set_yticks(ys)
     axl.set_yticklabels(labels, fontsize=8.5)
+    axl.tick_params(axis="y", length=0)
     axl.set_xlim(-17.5, 17.5)
     axl.set_xticks([-15, -10, -5, 0, 5, 10, 15])
     axl.set_ylim(-0.8, len(labels) - 0.2)
     axl.xaxis.grid(True)
     axl.yaxis.grid(False)
-    axl.set_xlabel("year-on-year change, %", fontsize=9)
-    axl.set_title("Year-on-year change — ● volume   ● current prices", fontsize=10, color=T["muted"], loc="left")
+    axl.set_title("Year-on-year change (%)", fontsize=10, color=T["muted"], loc="left")
+    from matplotlib.lines import Line2D
+    axl.legend(handles=[
+        Line2D([], [], marker="o", linestyle="", color=T["violet"], label="chained volume"),
+        Line2D([], [], marker="D", linestyle="", color=T["petrol"], markerfacecolor="none", label="current prices"),
+    ], loc="best", frameon=False, fontsize=7.5, labelcolor=T["ink"])
 
     axr = fig.add_axes([0.79, 0.155, 0.195, 0.75])
     cvals = [contrib_map.get(name, 0.0) for name in labels]
@@ -305,16 +341,17 @@ def fig2_split(con, canvas_in=9.0):
     axr.axvline(0, color=T["muted"], lw=0.9)
     axr.set_yticks([])
     axr.set_xlim(-1.75, 1.75)
-    axr.set_xticks([-1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5])
+    axr.set_xticks([-1, 0, 1])
     axr.set_ylim(-0.8, len(labels) - 0.2)
     axr.xaxis.grid(True)
     axr.yaxis.grid(False)
     axr.set_xlabel("contribution, pp", fontsize=9)
-    axr.set_title(f"Contribution to +{tot_p:.2f}%", fontsize=10, color=T["muted"], loc="left")
+    axr.set_title(f"Contribution to {tot_p:+.2f}%", fontsize=10, color=T["muted"], loc="left")
 
     fig.subplots_adjust()
     ftxt = foot(fig, foottext)
-    assert_clear(fig, [(st, axl.title), (ftxt, axl.get_xticklabels()[-1]), (ftxt, axr.get_xticklabels()[-1])],
+    assert_clear(fig, [(st, axl.title), (ftxt, axl.xaxis.label), (ftxt, axr.xaxis.label)]
+                 + [(ftxt, tick) for ax in (axl, axr) for tick in ax.get_xticklabels()],
                  "F2 suptitle/titles + footnote/ticks")
     assert_inbounds(fig, "F2")
     assert_texts_clear(fig, "F2")
@@ -324,10 +361,10 @@ def fig2_split(con, canvas_in=9.0):
 
 def fig3_watch(con, canvas_in=9.0):
     watch = ["Supermarkets & Hypermarkets", "Watches & Jewellery", "Petrol Service Stations"]
-    split = load_split()
+    split = load_split(con)
     title = "Three industries to watch next month — the heavyweight, the carrier, and the diverging one"
-    foottext = ("Chained volume vs current prices (2025=100), last 4 years · Supermarkets & Hypermarkets: 16.0% weight, the biggest drag\n"
-                "Watches & Jewellery: carried the +1.5% headline · Petrol Service Stations: largest volume decline while its value held\n"
+    foottext = ("Chained volume vs current prices (2025=100), last 4 years — selected industries, not a forecast\n"
+                f"Petrol Service Stations: volume {float(split[('retail', watch[2])]['yoy_volume_pct']):+.1f}% YoY; current prices {float(split[('retail', watch[2])]['yoy_prices_pct']):+.1f}% YoY\n"
                 f"{SRC}")
     assert_fits(title, 12.5, "F3 title", canvas_in)
     assert_fits(foottext, 7.5, "F3 footnote", canvas_in)
@@ -360,7 +397,8 @@ def fig3_watch(con, canvas_in=9.0):
         pad = (hi - lo) * 0.18 + 2
         ax.set_ylim(lo - pad, hi + pad)
         ax.set_xlim(mdates.date2num(x[0]) - 30, mdates.date2num(x[-1]) + 30)
-        ax.set_xticks([date(2023, 1, 1), date(2025, 1, 1)])
+        ax.set_xticks([date(y, 1, 1) for y in range(x[0].year, x[-1].year + 1, 2)
+                      if x[0] <= date(y, 1, 1) <= x[-1]])
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     ftxt = foot(fig, foottext)
     assert_clear(fig, [(st, fig.axes[0].title), (ftxt, fig.axes[0].get_xticklabels()[-1]),

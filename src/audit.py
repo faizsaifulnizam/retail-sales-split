@@ -10,6 +10,8 @@ Run (repo root): python src/audit.py    -> exit 1 if any comparable row drifts b
 """
 import csv
 import json
+import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -21,10 +23,14 @@ OUT = ROOT / "outputs"
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 NUM = re.compile(r"^-?\d+(\.\d+)?$")
-TOL = 0.06  # release rounds to 0.1 pt; recomputation tolerance
+# Percentage points: half of 0.1 pp release rounding plus 0.001 pp allowance
+# for the published indices' three-decimal precision. Compare BEFORE rounding.
+TOL = 0.051
 
-LATEST = "2026 Jul"
-PREV = "2025 Jul"
+RELEASE_REFERENCE = "release-2026-07-tables.csv"  # intentionally pinned; never guess a new release
+_year, _month = map(int, RELEASE_REFERENCE.removeprefix("release-").removesuffix("-tables.csv").split("-"))
+LATEST = f"{_year} {MONTHS[_month - 1]}"
+PREV = f"{_year - 1} {MONTHS[_month - 1]}"
 
 
 def midx(label):
@@ -66,7 +72,15 @@ def profile():
         cells = sum(len(r["columns"]) for r in rows)
         bad = sum(1 for r in rows for c in r["columns"] if not NUM.match(str(c["value"])))
         total_cells += cells
-        last = max(r["columns"][-1]["key"] for r in rows)
+        if bad:
+            raise ValueError(f"{fname}: {bad} non-numeric cells")
+        if d["frequency"] == "Monthly":
+            last = max((c["key"] for r in rows for c in r["columns"]), key=midx)
+            if last != LATEST:
+                raise ValueError(f"{fname}: raw reaches {last}; explicit release snapshot for that month required "
+                                 f"(audit is pinned to {RELEASE_REFERENCE})")
+        else:
+            last = max(r["columns"][-1]["key"] for r in rows)
         print(f"  {d['id']}: {len(rows):2d} rows · {cells:5d} cells · latest {last:8s} · "
               f"{d['frequency']:9s} · {d['adjustmentType'] or 'n/a':24s} · updated {d['dataLastUpdated']} · non-numeric {bad}")
     print(f"  TOTAL: {total_cells} cells, 0 expected non-numeric")
@@ -74,7 +88,8 @@ def profile():
 
 def cross_check():
     print(f"\n== release cross-check — {LATEST} (release rounds to 0.1 pt; tolerance ±{TOL}) ==")
-    rel_rows = list(csv.DictReader((REF / "release-2026-07-tables.csv").open(encoding="utf-8")))
+    with (REF / RELEASE_REFERENCE).open(encoding="utf-8") as f:
+        rel_rows = list(csv.DictReader(f))
     prices = load("M602121")
     prices_sa = load("M602122")
     vol = load("M602201")
@@ -102,54 +117,63 @@ def cross_check():
             src = "M602131/M602132"
             cy, cm = yoy(series(fb_prices, name)), mom(series(fb_prices_sa, name))
         ry, rm = float(r["rel_yoy_jul26_pct"]), float(r["rel_sa_mom_jul26_pct"])
-        dy = None if cy is None else round(cy - ry, 3)
-        dm = None if cm is None else round(cm - rm, 3)
+        dy = None if cy is None else cy - ry
+        dm = None if cm is None else cm - rm
         ok = (dy is None or abs(dy) <= TOL) and (dm is None or abs(dm) <= TOL)
         if not ok:
             mismatches += 1
         out_rows.append({
             "series_group": group, "row": name,
-            "rel_yoy_jul26_pct": ry, "calc_yoy_jul26_pct": "" if cy is None else round(cy, 2),
+            "rel_yoy_jul26_pct": ry, "calc_yoy_jul26_pct": "" if cy is None else cy,
             "diff_yoy_pct": "" if dy is None else dy,
-            "rel_sa_mom_jul26_pct": rm, "calc_sa_mom_jul26_pct": "" if cm is None else round(cm, 2),
+            "rel_sa_mom_jul26_pct": rm, "calc_sa_mom_jul26_pct": "" if cm is None else cm,
             "diff_sa_mom_pct": "" if dm is None else dm,
-            "source_table": src, "status": "match" if ok else "MISMATCH",
+            "source_table": src, "status": ("not_recomputed" if cy is None and cm is None
+                                             else "match" if ok else "MISMATCH"),
         })
         fmt = lambda v: f"{v:+7.2f}" if v is not None else "    n/a"
         print(f"  {group:6s} {name:56s} yoy rel {ry:+6.1f} calc {fmt(cy)} | mom rel {rm:+5.1f} calc {fmt(cm)}"
-              f"  [{'ok' if ok else 'MISMATCH'}]")
-    OUT.mkdir(exist_ok=True)
-    with (OUT / "release_check.csv").open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(out_rows[0].keys()))
-        w.writeheader()
-        w.writerows(out_rows)
-    print(f"  wrote outputs/release_check.csv · comparable rows {sum(1 for r in out_rows if r['calc_yoy_jul26_pct'] != '')} "
+              f"  [{out_rows[-1]['status']}]")
+    print(f"  comparable rows {sum(1 for r in out_rows if r['calc_yoy_jul26_pct'] != '')} "
           f"· mismatches {mismatches}")
-    return mismatches
+    return out_rows, mismatches
 
 
 def contributions():
-    print("\n== contribution reconciliation (current prices, weights x index moves) ==")
-    prices = load("M602121")
-    weights = {}
-    for r in csv.DictReader((REF / "rss-weights.csv").open(encoding="utf-8")):
-        if r["series_group"] == "retail":
-            weights[r["industry"]] = float(r["weight_2025_pct"])
-    total = series(prices, "Total")
-    d_total = total[LATEST] - total[PREV]
-    acc = 0.0
-    for name, w in weights.items():
-        if name in ("Computer & Telecommunications Equipment", "Optical Goods & Books", "Others"):
-            continue
-        s = series(prices, name)
-        c = (w / 100.0) * (s[LATEST] - s[PREV])
-        acc += c
-        print(f"  {name:46s} w {w:4.1f}%  contrib {c:+6.3f} pts")
-    residual = d_total - acc
-    print(f"  11 industries sum {acc:+.3f} pts · total move {d_total:+.3f} pts · residual {residual:+.3f} pts")
-    ok = abs(residual) <= 0.05
-    print(f"  [{'PASS' if ok else 'FAIL'}] residual within ±0.05 pts (three industries not published monthly)")
-    return 0 if ok else 1
+    print("\n== contribution reconciliation (current prices, percentage points of growth) ==")
+    with (REF / "rss-weights.csv").open(encoding="utf-8") as f:
+        weights = list(csv.DictReader(f))
+    bad = 0
+    for group, tid in (("retail", "M602121"), ("fb", "M602131")):
+        prices = load(tid)
+        total = series(prices, "Total")
+        group_weights = [r for r in weights if r["series_group"] == group]
+        covered = [r for r in group_weights if group != "retail" or r["industry"] not in
+                   ("Computer & Telecommunications Equipment", "Optical Goods & Books", "Others")]
+        acc = 0.0
+        for r in covered:
+            s = series(prices, r["industry"])
+            w = float(r["weight_2025_pct"])
+            c = w * (s[LATEST] - s[PREV]) / total[PREV]
+            if not math.isfinite(c) or w <= 0:
+                bad += 1
+            acc += c
+            print(f"  {group} {r['industry']:46s} w {w:4.1f}% contribution {c:+.4f} pp")
+        residual = (total[LATEST] / total[PREV] - 1) * 100 - acc
+        print(f"  {group}: {len(covered)} industries sum {acc:+.4f} pp · residual {residual:+.4f} pp")
+        if not math.isfinite(residual) or not covered:
+            bad += 1
+        if group == "fb":
+            # Full F&B coverage can reconcile; the partial retail basket cannot.
+            if len(covered) != 5 or abs(sum(float(r["weight_2025_pct"]) for r in covered) - 100) > 0.2:
+                bad += 1
+            if abs(residual) > 0.05:
+                bad += 1
+        else:
+            if len(covered) != 11:
+                bad += 1
+            print("  retail residual: coverage, linking/aggregation and rounding; no near-zero bound")
+    return bad
 
 
 def headline_echo():
@@ -164,11 +188,56 @@ def headline_echo():
     print(f"  F&B volume: YoY {yoy(ft):+.2f}% (kept separate)")
 
 
+def levels_check():
+    # Explicit July 2026 release snapshot (SGD million / percent), not dynamic constants.
+    # A new release requires a new transcribed reference AND explicit levels below.
+    if LATEST != "2026 Jul":
+        raise ValueError("explicit levels snapshot required for the selected release")
+    specs = [
+        ("retail_sales", "SGD million", 4419.0, "M602171", "Retail Sales Value - Estimated"),
+        ("retail_sales_excl_mv", "SGD million", 3679.0, "M602171",
+         "Retail Sales Value (Excluding Motor Vehicles, Parts & Accessories) - Estimated"),
+        ("fb_sales", "SGD million", 1607.0, "M602181", "Value Of Food & Beverage Sales - Estimated"),
+        ("retail_online_share", "%", 15.4, "M602191", "Retail Trade"),
+    ]
+    rows, bad = [], 0
+    for metric, unit, expected, tid, name in specs:
+        calc = series(load(tid), name)[LATEST]
+        diff = calc - expected
+        # Release levels are rounded to a million dollars / 0.1 percent.
+        ok = abs(diff) <= (0.5 if unit == "SGD million" else 0.05)
+        bad += not ok
+        rows.append(dict(metric=metric, period=f"{_year}-{_month:02d}-01", unit=unit,
+                         release_value=expected, calc_value=calc, diff=diff,
+                         status="match" if ok else "MISMATCH", source_table=tid))
+        print(f"  {metric}: release {expected} vs raw {calc} {unit} [{rows[-1]['status']}]")
+    return rows, bad
+
+
 def main():
     profile()
-    bad = cross_check()
-    bad += contributions()
+    rows, bad = cross_check()
+    levels, levels_bad = levels_check()
+    bad += levels_bad + contributions()
     headline_echo()
+    if not bad:
+        OUT.mkdir(exist_ok=True)
+        # Stage every receipt after ALL checks; validation failures preserve both files.
+        staged = []
+        try:
+            for name, data in (("release_check.csv", rows), ("levels_check.csv", levels)):
+                path = OUT / name
+                tmp = path.with_suffix(".csv.tmp")
+                staged.append((tmp, path))
+                with tmp.open("w", newline="", encoding="utf-8") as f:
+                    w = csv.DictWriter(f, fieldnames=list(data[0]), lineterminator="\n")
+                    w.writeheader()
+                    w.writerows(data)
+            for tmp, path in staged:
+                os.replace(tmp, path)
+        finally:
+            for tmp, _ in staged:
+                tmp.unlink(missing_ok=True)
     print(f"\n{'ALL AUDIT CHECKS PASS' if bad == 0 else f'{bad} FAILURE(S)'}")
     return 1 if bad else 0
 

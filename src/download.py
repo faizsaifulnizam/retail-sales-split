@@ -220,8 +220,8 @@ def validate(text, spec):
 
 
 def _release_page(latest_month):
-    """Derive the SingStat release-page slug from the latest month, e.g. 'Jul 2026' -> ...jul2026."""
-    mon, year = latest_month.split()
+    """Derive the release slug from Table Builder's '2026 Jul' labels."""
+    year, mon = latest_month.split()
     return ("https://www.singstat.gov.sg/news/monthly-retail-sales-index-"
             f"and-food-beverage-services-index-{mon.lower()}{year}")
 
@@ -263,17 +263,21 @@ def main():
         print("raw files already present — use --force to refresh")
         for p in present.values():
             print("  ", p.as_posix())
-        if not MANIFEST.exists():
-            infos, ok = {}, True
-            for spec in TABLES:
-                info, problems = validate(present[spec["id"]].read_bytes(), spec)
-                if problems:
-                    ok = False
-                    print(f"  [FAIL] existing tb-{spec['id']}.json: {problems}")
-                infos[spec["id"]] = info
-            if ok:
-                mtime = datetime.fromtimestamp(present["M602201"].stat().st_mtime).astimezone().isoformat(timespec="seconds")
-                write_manifest(infos, mtime)
+        infos, ok = {}, True
+        for spec in TABLES:
+            info, problems = validate(present[spec["id"]].read_bytes(), spec)
+            if problems:
+                ok = False
+                print(f"  [FAIL] existing tb-{spec['id']}.json: {problems}")
+            infos[spec["id"]] = info
+        if not ok:
+            raise SystemExit("cached raw validation failed — files and manifest left untouched")
+        if MANIFEST.exists():
+            retrieved_at = json.loads(MANIFEST.read_text(encoding="utf-8"))["retrieved_at"]
+        else:
+            retrieved_at = datetime.fromtimestamp(present["M602201"].stat().st_mtime).astimezone().isoformat(timespec="seconds")
+        # Refresh derived metadata only; never re-date or re-download cached observations.
+        write_manifest(infos, retrieved_at)
         return
 
     infos = {}

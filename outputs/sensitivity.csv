@@ -2,10 +2,10 @@ variant,window,metric,value,note
 headline basis — chained volume,latest month,yoy_pct,-1.28,the repo's analytical headline
 headline basis — current prices,latest month,yoy_pct,1.46,the release's basis
 headline basis — chained volume,latest month,sa_mom_pct,0.4,seasonally adjusted
-headline basis — current prices,latest month,sa_mom_pct,0.88,seasonally adjusted (release rounds to +0.9)
+headline basis — current prices,latest month,sa_mom_pct,0.88,seasonally adjusted
 SA MoM window — 3-month change,2026-04-01 to 2026-07-01,sa_3m_pct,0.51,"chained volume, SA; longer window smooths single-month noise"
 SA MoM window — 3-month change,2026-04-01 to 2026-07-01,sa_3m_pct_prices,-0.39,"current prices, SA"
-contribution method — exact (prices),latest month,sum_pp_vs_total_pp,1.44,vs total +1.46 pp; residual +0.017 pp (3 industries not monthly)
-contribution method — approx (volume),latest month,sum_pp_vs_total_pp,-1.18,"vs total -1.28 pp; chain-linked -> approximation, residual -0.102 pp"
+contribution method — fixed-weight (prices),latest month,sum_pp_vs_total_pp,1.4404,"vs total growth +1.4578%; residual +0.0174 pp (coverage, linking/aggregation and rounding)"
+contribution method — approx (volume),latest month,sum_pp_vs_total_pp,-1.179,"vs total growth -1.2811%; residual -0.1021 pp (unobserved industries, rounding and chain linking; no interpretable bound)"
 weight set — 2025-based,latest month,basket_yoy_pct,1.66,11-industry basket
 weight set — 2017-based,latest month,basket_yoy_pct,1.45,"same indices, old weights"

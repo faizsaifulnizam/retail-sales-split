@@ -22,5 +22,8 @@ jobs:
       - name: Compile sources
         run: python -m compileall -q src
 
+      - name: Offline stdlib pipeline regressions (raw integration skips when absent)
+        run: python tests/test_pipeline_regressions.py -v
+
       - name: Check committed outputs, figures and assets
         run: python tests/smoke_test.py

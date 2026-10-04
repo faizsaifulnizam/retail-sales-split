@@ -6,16 +6,22 @@ In CI:            same command, on every push + PR (.github/workflows/ci.yml)
 These do NOT re-run the pipeline (that needs the raw download); they check the
 repo's committed outputs, figures and assets are present, parse, and keep their
 expected shape. Regenerating the outputs should still keep these green:
-required-column SUBSETS only, no headline numbers, figures = existence + size floor.
+required-column SUBSETS, historical July anchors (not fixed latest), and validation gates.
 """
 
 from __future__ import annotations
 
 import csv
+import math
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+NOT_MONTHLY = {"Computer & Telecommunications Equipment", "Optical Goods & Books", "Others"}
+RELEASE_TOL_PP = 0.051  # 0.05 pp release rounding + 0.001 pp published-index precision
+LEVELS_CSV = ROOT / "outputs" / "levels_check.csv"
+RECON_CSV = ROOT / "outputs" / "contribution_reconciliation.csv"
 
 SPLIT_CSV = ROOT / "outputs" / "latest_split.csv"
 RELEASE_CSV = ROOT / "outputs" / "release_check.csv"
@@ -47,29 +53,70 @@ def _load_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def _number(value):
+    n = float(value)
+    assert math.isfinite(n), f"non-finite value: {value}"
+    return n
+
+
+def _july_anchors(rows):
+    total = [r for r in rows if r["series_group"] == "retail" and r["industry"] == "Total"]
+    watches = [r for r in rows if r["series_group"] == "retail" and r["industry"] == "Watches & Jewellery"]
+    assert len(total) == len(watches) == 1, "missing/duplicate July anchor rows"
+    assert math.isclose(_number(total[0]["yoy_volume_pct"]), -1.28, abs_tol=0.005)
+    assert math.isclose(_number(total[0]["yoy_prices_pct"]), 1.46, abs_tol=0.005)
+    assert math.isclose(_number(watches[0]["contrib_prices_pp"]), 1.207, abs_tol=0.0005)
+
+
 def test_latest_split() -> None:
     rows = _load_csv(SPLIT_CSV)
-    assert rows, f"{SPLIT_CSV.name} has no data rows"
-    missing = SPLIT_REQUIRED_COLS - set(rows[0].keys())
-    assert not missing, f"{SPLIT_CSV.name} missing columns: {sorted(missing)}"
-    groups = {r["series_group"] for r in rows}
-    assert groups == {"retail", "fb"}, f"unexpected series groups: {groups}"
-    assert any(r["series_group"] == "retail" and r["industry"] == "Total" for r in rows), "no retail Total row"
+    assert rows and SPLIT_REQUIRED_COLS <= rows[0].keys(), "missing split data/columns"
+    weights = _load_csv(ROOT / "data/reference/rss-weights.csv")
+    expected = {(r["series_group"], r["industry"]) for r in weights} | {
+        ("retail", "Total"), ("fb", "Total"),
+        ("retail", "Total (Excluding Motor Vehicles, Parts & Accessories)")}
+    actual = {(r["series_group"], r["industry"]) for r in rows}
+    assert actual == expected and len(rows) == len(expected), "missing/unexpected/duplicate split industries"
+    assert len({r["latest_period"] for r in rows}) == 1, "mixed latest periods"
     for r in rows:
-        if r["yoy_volume_pct"]:
-            float(r["yoy_volume_pct"])
-        if r["contrib_prices_pp"]:
-            float(r["contrib_prices_pp"])
+        numeric = [k for k in r if k.endswith(("_pct", "_pp"))]
+        for k in numeric:
+            if r[k]:
+                _number(r[k])
+        if r["series_group"] == "retail" and r["industry"] in NOT_MONTHLY:
+            assert all(not r[k] for k in numeric if not k.startswith("weight_")), "unavailable monthly metrics populated"
+            assert "unavailable" in r["note"]
+        elif r["industry"].startswith("Total (Excluding"):
+            assert r["yoy_prices_pct"], "missing excl-MV value YoY"
+        else:
+            assert all(r[k] for k in ("yoy_prices_pct", "yoy_volume_pct", "sa_mom_volume_pct", "sa_mom_prices_pct")), "unexpected empty monthly metrics"
+            if r["industry"] != "Total":
+                assert r["contrib_prices_pp"], "missing industry contribution"
+    if rows[0]["latest_period"] == "2026-07-01":
+        _july_anchors(rows)  # Historical lock, not a permanently pinned latest month.
 
 
 def test_release_check() -> None:
     rows = _load_csv(RELEASE_CSV)
-    assert rows, f"{RELEASE_CSV.name} has no data rows"
-    missing = RELEASE_REQUIRED_COLS - set(rows[0].keys())
-    assert not missing, f"{RELEASE_CSV.name} missing columns: {sorted(missing)}"
-    assert len(rows) >= 19, f"only {len(rows)} release rows — expected the full set"
+    assert rows and RELEASE_REQUIRED_COLS <= rows[0].keys(), "missing release data/columns"
+    assert len(rows) == 22
+    assert sum(r["status"] == "match" for r in rows) == 19
+    assert sum(r["status"] == "not_recomputed" for r in rows) == 3
+    assert len({(r["series_group"], r["row"]) for r in rows}) == len(rows), "duplicate release rows"
     for r in rows:
-        assert r["status"] in ("match", "MISMATCH"), f"unexpected status {r['status']!r}"
+        unavailable = r["series_group"] == "retail" and r["row"] in NOT_MONTHLY
+        assert r["status"] == ("not_recomputed" if unavailable else "match"), "release validation failed"
+        for calc, rel, diff in (("calc_yoy_jul26_pct", "rel_yoy_jul26_pct", "diff_yoy_pct"),
+                                ("calc_sa_mom_jul26_pct", "rel_sa_mom_jul26_pct", "diff_sa_mom_pct")):
+            if unavailable:
+                assert not r[calc] and not r[diff]
+            elif r[calc]:
+                d = _number(r[calc]) - _number(r[rel])
+                assert math.isclose(d, _number(r[diff]), abs_tol=1e-10), "inconsistent release difference"
+                assert abs(d) <= RELEASE_TOL_PP, "release difference outside rounding/precision gate"
+            else:
+                assert calc.startswith("calc_sa") and r["row"].startswith("Total (Excluding"), "unexpected uncomputed release row"
+                assert not r[diff]
 
 
 def test_rebase_and_sensitivity() -> None:
@@ -89,6 +136,48 @@ def test_tableau_extract() -> None:
     assert len(rows) >= 2000, f"only {len(rows)} extract rows — expected the monthly history"
     months = {r["month"] for r in rows}
     assert min(months) >= "2016-01", f"extract starts before 2016: {min(months)}"
+    _july_anchors([r for r in rows if r["month"] == "2026-07-01"])
+
+
+def test_levels_check() -> None:
+    rows = _load_csv(LEVELS_CSV)
+    expected = {"retail_sales": (4419, "SGD million"), "retail_sales_excl_mv": (3679, "SGD million"),
+                "fb_sales": (1607, "SGD million"), "retail_online_share": (15.4, "%")}
+    assert len(rows) == len(expected) and {r["metric"] for r in rows} == expected.keys()
+    for r in rows:
+        value, unit = expected[r["metric"]]
+        assert r["period"] == "2026-07-01" and r["unit"] == unit, "wrong levels snapshot/unit"
+        assert _number(r["release_value"]) == value and r["status"] == "match"
+        diff = _number(r["calc_value"]) - value
+        assert math.isclose(diff, _number(r["diff"]), abs_tol=1e-10)
+        assert abs(diff) <= (0.5 if unit == "SGD million" else 0.05)
+
+
+def test_contribution_reconciliation() -> None:
+    rows = _load_csv(RECON_CSV)
+    assert rows, "empty reconciliation history"
+    assert len({(r["month"], r["series_group"]) for r in rows}) == len(rows)
+    for r in rows:
+        total, covered, residual = (_number(r[k]) for k in
+                                   ("total_yoy_pct", "covered_contrib_prices_pp", "residual_prices_pp"))
+        assert math.isclose(total - covered, residual, abs_tol=1e-10)
+        assert r["series_group"] in ("retail", "fb")
+        assert 0 < int(r["covered_industries"]) <= (11 if r["series_group"] == "retail" else 5)
+        assert 0 < _number(r["covered_weight_pct"]) <= 100.2
+    latest = max(r["month"] for r in rows)
+    for group, n, weight in (("retail", 11, 86.1), ("fb", 5, 100)):
+        row = next(r for r in rows if r["month"] == latest and r["series_group"] == group)
+        assert int(row["covered_industries"]) == n
+        assert math.isclose(_number(row["covered_weight_pct"]), weight, abs_tol=1e-8)
+        if group == "fb":
+            assert abs(_number(row["residual_prices_pp"])) <= 0.05
+    for month, residual in (("2026-07-01", .0174), ("2026-06-01", .7088),
+                            ("2026-05-01", .3201), ("2025-07-01", .4390)):
+        row = next(r for r in rows if r["month"] == month and r["series_group"] == "retail")
+        assert math.isclose(_number(row["residual_prices_pp"]), residual, abs_tol=.00005)
+    sens = next(r for r in _load_csv(SENS_CSV) if r["variant"].startswith("contribution method — fixed-weight"))
+    row = next(r for r in rows if r["month"] == latest and r["series_group"] == "retail")
+    assert math.isclose(_number(sens["value"]), _number(row["covered_contrib_prices_pp"]), abs_tol=.00005)
 
 
 def test_figures_present() -> None:
@@ -110,7 +199,8 @@ def test_banner_and_docs_present() -> None:
 
 def main() -> int:
     checks = [test_latest_split, test_release_check, test_rebase_and_sensitivity,
-              test_tableau_extract, test_figures_present, test_banner_and_docs_present]
+              test_tableau_extract, test_levels_check, test_contribution_reconciliation,
+              test_figures_present, test_banner_and_docs_present]
     failed = 0
     for fn in checks:
         try:

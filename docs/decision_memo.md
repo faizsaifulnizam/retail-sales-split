@@ -1,44 +1,15 @@
-# Decision memo — Singapore retail sales, July 2026: broad or narrow?
+# Decision memo — Singapore retail sales, July 2026: breadth and concentration
 
-**The answer: narrow — and the two lenses disagree.** In July 2026, real (chained-volume) retail
-sales fell **−1.3% year-on-year** while the value headline (current prices — the number the
-release quotes) rose **+1.5%**: consumers bought slightly less, at slightly higher prices. The
-split says the +1.5% was carried by a handful of industries — **Watches & Jewellery alone
-contributed +1.21 of the +1.46 percentage points** (weight 11.6%), with Cosmetics (+0.29),
-Recreational Goods (+0.24) and Wearing Apparel (+0.24) behind it — while the drags were
-**Supermarkets & Hypermarkets (−0.37 pp; the 16.0% heavyweight is now shrinking),
-Food & Alcohol (−0.23) and Department Stores (−0.14)**. Six of the eleven industries with
-current monthly data fell in volume terms; the decline is *not* broad — it is a heavyweight
-plus a few categories, versus a strong luxury-and-leisure pocket.
+**Value growth was concentrated in watches; volume weakness spanned six observed industries.** July retail chained volume fell **−1.28% YoY**, while current-price sales value rose **+1.46%** (release: +1.5%). **Six of eleven** industries with current monthly indices declined in volume: **47.8% of total 2025-base weight**, within an observed subset covering **86.1%**. This reports breadth without an undefined “broad/narrow” threshold. The largest approximate volume drags were **Supermarkets & Hypermarkets −0.837 pp** and **Petrol Service Stations −0.738 pp**, partly offset by **Watches & Jewellery +0.839 pp**.
 
-**Scope.** Retail trade only — F&B services (a separate index, −3.3% volume / −1.9% prices,
-led down by Food Courts & Other Eating Places −6.6% and Cafes −6.4%) are **never mixed in**.
-Latest month = 2026 Jul; YoY from the original series, MoM from the seasonally adjusted
-series. Contributions are **exact on current prices** (the published formula is a weighted
-average of industry indices; residual +0.017 pp from three industries not published monthly)
-and labelled approximate on chained volume (chain-linked weights).
+On value, **Watches & Jewellery contributed +1.207 pp**, followed by Cosmetics (+0.288), Recreational Goods (+0.243) and Wearing Apparel (+0.237). Supermarkets (−0.370), Food & Alcohol (−0.232) and Department Stores (−0.136) dragged. These fixed-weight calculations sum to **+1.4404 pp**, leaving **+0.0174 pp residual** against total growth of +1.4578%. The net remaining contribution after subtracting watches is **+0.2508 pp, including the residual** — not a recalculated “headline excluding watches,” which would require a different denominator. The small July residual does not prove exact additivity: June's residual is **+0.7088 pp**.
 
-**The rebase, quantified.** The 2025=100 rebasing cut **Motor Vehicles, Parts & Accessories'
-weight from 18.1% to 14.8%** and raised **Watches & Jewellery (+2.6 pp) and Food & Alcohol
-(+2.5 pp)**. Holding the same industry indices and re-aggregating under old vs new weights
-moves the 11-industry basket from +1.45% to +1.66% — a **+0.21 pp** weight effect, in the
-direction of the industries that actually grew. So the rebase **nudges the headline up, not
-down** — and it changes which industries can move the needle (Motor Vehicles less; watches
-and food & alcohol more). Limits: pre-2026 values are *linked*, not recalculated, and the
-SSIC 2025 definitional moves (motorcycles folded into Motor Vehicles; musical instruments
-into Recreational Goods) cannot be undone from published data.
+**Scope and comparisons.** Retail and F&B services are separate indices, never combined. F&B total was **−3.26% volume / −1.86% value YoY**. Food Courts & Other Eating Places fell **−8.78% volume / −6.56% value**; Cafes **−7.30% / −6.42%**. All these rates are YoY; retail SA MoM was **positive on both bases: +0.40% volume / +0.88% value**. Contributions are fixed-weight calculations; chained-volume contributions are approximate. Missing monthly industries, linked aggregation and rounding can enter residuals.
 
-**Two sectors to watch next month.** (1) **Supermarkets & Hypermarkets** — the biggest weight
-(16.0%) is now the biggest drag (−0.37 pp; volume −4.8% YoY); if it keeps shrinking, the
-headline stays weak regardless of the luxury pocket. (2) **Watches & Jewellery** — it carried
-the entire headline; if that streak cools, the +1.5% has nothing left under it.
+**Rebase sensitivity, not a headline effect.** Motor Vehicles, Parts & Accessories' published weight fell **18.1% → 14.8%**; Watches & Jewellery rose **9.0% → 11.6%** and Food & Alcohol **2.1% → 4.6%**. With the same current indices, old/new weights yield **+1.45% / +1.66% growth for the renormalized 11-industry subset**: **+0.21 pp difference**. Three industries (13.9% of new weight) are excluded. This is not the rebase's effect on the published +1.46% headline and does not reconstruct the old-base headline: pre-2026 series are linked, and SSIC 2025 classification moves cannot be undone from published data.
 
-**What a reader should NOT conclude.** This file cannot say a shop's sales (industry
-aggregates, not companies); it cannot separate online from in-store except where the online
-series says so (retail online share 15.4%, down from 16.4% in June); it cannot say *why*
-any category moved (prices, tourism, promotions are out of scope); and it is **not a
-forecast** — no prediction ships without an error column, so none ships. Volumes vs values:
-the −1.3%/+1.5% gap is consistent with prices running modestly positive, not proof of any
-specific price story. Numbers: [`../outputs/latest_split.csv`](../outputs/latest_split.csv)
-(one row per industry); method and audit: [`data_audit.md`](data_audit.md); robustness:
-[`sensitivity.md`](sensitivity.md); release cross-check: [`../outputs/release_check.csv`](../outputs/release_check.csv).
+**Three industries to monitor, not predictions.** (1) **Supermarkets & Hypermarkets:** 16.0% weight, volume −4.83%; largest approximate volume drag. (2) **Watches & Jewellery:** largest calculated value contributor; monitor whether that concentration persists, without assuming the rest contributes nothing. (3) **Petrol Service Stations:** volume −14.53% versus value −1.05% (release: −1.1%); both declined, by different magnitudes. These are descriptive monitoring priorities, not conditional forecasts.
+
+**What a reader should NOT conclude.** These aggregates cannot identify shop performance, customer counts or why an industry moved. The aggregate value/volume growth ratio implies **+2.77% in an implicit deflator**, not CPI or a measured change in prices paid by particular consumers. Retail online share is **15.4% of sales value**, versus 16.4% in June, not a buyer count. The newest month is provisional. This is a July snapshot, not a forecast or a fully automatic next-month narrative.
+
+Numbers: [`../outputs/latest_split.csv`](../outputs/latest_split.csv); coverage/residual history: [`../outputs/contribution_reconciliation.csv`](../outputs/contribution_reconciliation.csv); audit: [`data_audit.md`](data_audit.md); robustness: [`sensitivity.md`](sensitivity.md); dated transcription comparison: [`../outputs/release_check.csv`](../outputs/release_check.csv). Local remediation does not freshly authenticate the source PDFs; execution/publication receipts are tracked in [`review-remediation.md`](review-remediation.md).

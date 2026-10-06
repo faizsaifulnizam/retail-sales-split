@@ -38,6 +38,16 @@
 
 *Full size in [`reports/figures/`](reports/figures/) · write-up in [`docs/decision_memo.md`](docs/decision_memo.md) · dashboard-ready extract in [`outputs/tableau_extract.csv`](outputs/tableau_extract.csv) ([published Tableau Public dashboard](https://public.tableau.com/views/SingaporeRetail/Singaporeretailsplitandrebased); scope and checks in [`bi/README.md`](bi/README.md)).*
 
+## Decision implications
+
+**A positive nominal headline does not justify a category-wide inventory increase.** Volume weakness and concentrated value growth make the sector total a poor guide to a retailer's own demand. For a hypothetical retailer, the proposed next step is to compare its own category units sold and realised prices with margins, stock cover, markdowns and supplier lead times before changing orders.
+
+- **Maintain current orders** if that review gives no clear reason to change, but check whether long lead times leave a stockout risk.
+- **Adjust selected categories** where the retailer's own unit sales and stock cover support it, balancing stockout risk against cash tied up in inventory and later markdowns.
+- **Consider a limited promotion** where excess stock and margin room support it, then review units, margin and stock cover before extending it. More sales value alone would not establish success.
+
+These are proposed options, not actions taken or tested. Sector aggregates cannot tell a shop what to order or establish that an inventory or pricing change will improve results. See the [decision memo](docs/decision_memo.md) for the decision checks and trade-offs.
+
 ## The question
 
 How widely did July's volume weakness spread, which industries carried value growth, and what can a weight swap tell us about the 2025 rebase? This repo reports **observed counts, weights and contributions**, rather than classifying the slowdown as “broad” or “narrow” without a threshold. Chained volume and current-price value are shown side by side; F&B services are a separate index.

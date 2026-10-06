@@ -10,6 +10,20 @@ On value, **Watches & Jewellery contributed +1.207 pp**, followed by Cosmetics (
 
 **Three industries to monitor, not predictions.** (1) **Supermarkets & Hypermarkets:** 16.0% weight, volume −4.83%; largest approximate volume drag. (2) **Watches & Jewellery:** largest calculated value contributor; monitor whether that concentration persists, without assuming the rest contributes nothing. (3) **Petrol Service Stations:** volume −14.53% versus value −1.05% (release: −1.1%); both declined, by different magnitudes. These are descriptive monitoring priorities, not conditional forecasts.
 
+## Proposed decision — review category orders, not a blanket increase
+
+**Audience:** a hypothetical retailer's buying and finance team. The positive nominal headline does not justify a category-wide inventory increase because volume weakened and value growth was concentrated. Use the sector split as context for a review of the retailer's own categories, not as a demand forecast or an order instruction.
+
+Before choosing an option, compare like-for-like category units sold and realised prices over the same periods, then check margins after markdowns, stock cover, planned receipts and supplier lead times. A rise in sales value alongside weaker units needs a different response from rising units with little stock available. The aggregate implicit deflator is not a substitute for the retailer's own price data.
+
+| Option | Evidence needed from the retailer | Trade-off to review |
+|---|---|---|
+| Maintain current orders | No clear change in unit demand or stock cover that warrants a different order | Avoid extra working capital, but long lead times may leave stockout risk |
+| Adjust selected categories | Unit sales, stock cover and planned receipts support a category-specific increase or reduction | More stock may protect availability but ties up cash and risks markdowns; less stock releases cash but may lose sales |
+| Consider a limited promotion | Excess stock, markdown history and margin room support a small trial | May clear stock and release cash, but lower prices reduce margin and may shift sales rather than add demand |
+
+**Proposed next step, not executed:** buying and finance review these inputs together, choose an option by category and record the reason. After any change, compare units, realised prices, margins, stock cover and markdowns before extending it. This project has not changed orders or run a promotion, and it has not measured a business outcome. Sector aggregates cannot establish that any option will cause better sales or margins.
+
 **What a reader should NOT conclude.** These aggregates cannot identify shop performance, customer counts or why an industry moved. The aggregate value/volume growth ratio implies **+2.77% in an implicit deflator**, not CPI or a measured change in prices paid by particular consumers. Retail online share is **15.4% of sales value**, versus 16.4% in June, not a buyer count. The newest month is provisional. This is a July snapshot, not a forecast or a fully automatic next-month narrative.
 
 Numbers: [`../outputs/latest_split.csv`](../outputs/latest_split.csv); coverage/residual history: [`../outputs/contribution_reconciliation.csv`](../outputs/contribution_reconciliation.csv); audit: [`data_audit.md`](data_audit.md); robustness: [`sensitivity.md`](sensitivity.md); dated transcription comparison: [`../outputs/release_check.csv`](../outputs/release_check.csv). Local remediation does not freshly authenticate the source PDFs; execution/publication receipts are tracked in [`review-remediation.md`](review-remediation.md).

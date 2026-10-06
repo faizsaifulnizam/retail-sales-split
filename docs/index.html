@@ -86,6 +86,15 @@ footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:18px;color:v
   <div class="note"><b>Published Tableau dashboard.</b> Explore retail value/volume history, fixed-weight industry contributions and the published total, covered estimate and residual. The industry picker changes only the contribution view. July 2026 snapshot; not an automatic live feed. Coverage and approximation limits still apply.<br><br><a href="https://public.tableau.com/views/SingaporeRetail/Singaporeretailsplitandrebased">Open the interactive Tableau dashboard →</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/bi/README.md">Dashboard notes and checks</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/outputs/tableau_extract.csv">Source extract</a>.</div>
 </div>
 
+<h2>Decision implications</h2>
+<p><b>A positive nominal headline does not justify a category-wide inventory increase.</b> Volume weakness and concentrated value growth make the sector total a poor guide to a retailer's own demand. For a hypothetical retailer's buying and finance team, the proposed next step is to compare its own category units sold and realised prices with margins, stock cover, markdowns, planned receipts and supplier lead times before changing orders.</p>
+<ol class="method">
+<li><b>Maintain current orders</b> if that review gives no clear reason to change, but check whether long lead times leave a stockout risk.</li>
+<li><b>Adjust selected categories</b> where the retailer's own unit sales and stock cover support it. More stock may protect availability but ties up working capital and risks markdowns; less stock releases cash but may lose sales.</li>
+<li><b>Consider a limited promotion</b> where excess stock and margin room support a small trial. It may release cash but reduces margin and may shift sales rather than add demand. Review units, realised prices, margins, stock cover and markdowns before extending it.</li>
+</ol>
+<p class="note"><b>Proposed, not executed or tested.</b> This project has not changed orders or run a promotion, and it has not measured a business outcome. Sector aggregates cannot tell a shop what to order or establish that an inventory or pricing change will improve results. The <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/docs/decision_memo.md">decision memo</a> sets out the checks and trade-offs.</p>
+
 <h2>Method</h2>
 <ol class="method">
 <li><b>Pull</b> — 14 SingStat Table Builder tables (RSI &amp; F&amp;B: volume, prices, value, online); structure-validated before replacing files, release-stamped manifest. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/src/download.py">src/download.py</a></li>

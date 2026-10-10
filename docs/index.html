@@ -31,6 +31,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,-apple-syst
 .stat .n{font-family:'Source Serif 4',Georgia,serif;font-size:29px;line-height:1.15}
 .stat .l{color:var(--muted);font-size:14px;margin-top:6px}
 h2{font-family:'Source Serif 4',Georgia,serif;font-size:26px;font-weight:700;margin:52px 0 12px}
+h1{font-family:'Source Serif 4',Georgia,serif;font-size:30px;line-height:1.25;margin:28px 0 12px}
 p{margin:12px 0}
 a{color:var(--accent)}
 .fig{margin:26px 0}
@@ -49,7 +50,7 @@ footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:18px;color:v
 </style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
 
 <p class="series">Retail Sales Index via SingStat Table Builder · latest month July 2026 · 4 of 6</p>
 
@@ -66,16 +67,17 @@ footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:18px;color:v
   <div class="stat"><div class="n">−1.3% vs +1.5%</div><div class="l">July 2026 YoY — chained volume vs current-price sales value; SA MoM rose on both bases (+0.40% / +0.88%)</div></div>
   <div class="stat"><div class="n">+1.21 of +1.46</div><div class="l">watches' calculated value contribution (pp) vs total growth (%); six of eleven observed industries fell in volume, 47.8% of total weight</div></div>
   <div class="stat"><div class="n">18.1% → 14.8%</div><div class="l">Motor Vehicles' published weight change; +0.21 pp is the old/new-weight sensitivity of the observed subset, not a headline effect</div></div>
-  <div class="stat"><div class="n">35,271/35,271 · 13/13</div><div class="l">July snapshot cells retained / staging checks, 0 exclusions; 19 release-comparable rows, three not recomputed; tolerance 0.05 + 0.001 pp</div></div>
+  <div class="stat"><div class="n">35,271/35,271 · 12/12</div><div class="l">July snapshot cells retained / staging checks, 0 exclusions; 19 release-comparable rows, three not recomputed; tolerance 0.05 + 0.001 pp</div></div>
 </div>
 
-<div class="fig">
+<h1>July 2026 retail: volume breadth, value concentration</h1>
+<figure class="fig">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="img/f1_headline-dark.png">
 <img src="img/f1_headline.png" alt="July 2026 retail sales: stat cards and history — chained volume vs current prices">
 </picture>
 <figcaption>YoY: volume fell while value rose. SA MoM: both rose (volume +0.40%, value +0.88%). Three years of history keep the one-month print in context.</figcaption>
-</div>
+</figure>
 
 <h2>More views</h2>
 <div class="grid2">
@@ -99,7 +101,7 @@ footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:18px;color:v
 <ol class="method">
 <li><b>Pull</b> — 14 SingStat Table Builder tables (RSI &amp; F&amp;B: volume, prices, value, online); structure-validated before replacing files, release-stamped manifest. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/src/download.py">src/download.py</a></li>
 <li><b>Audit</b> — profile, units, SA vs original; compare the dated July release transcription with raw Table Builder data. This remediation does not freshly authenticate the PDFs. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/docs/data_audit.md">docs/data_audit.md</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/src/audit.py">src/audit.py</a></li>
-<li><b>Stage &amp; check</b> — raw JSON → tidy monthly + quarterly tables; 13 assertions (coverage, contiguity, ranges) run <i>before</i> the parquet is written. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/sql/01_staging.sql">sql/01</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/sql/05_checks.sql">sql/05</a></li>
+<li><b>Stage &amp; check</b> — raw JSON → tidy monthly + quarterly tables; 12 assertions (coverage, contiguity, ranges) run <i>before</i> the parquet is written. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/sql/01_staging.sql">sql/01</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/sql/05_checks.sql">sql/05</a></li>
 <li><b>Split &amp; quantify</b> — latest-month YoY + SA MoM on both bases; fixed-weight value calculations, approximate volume contributions and explicit residuals; a renormalized subset weight swap under both weight sets. <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/src/analysis.py">src/analysis.py</a> → <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/outputs/latest_split.csv">latest_split.csv</a> · <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/outputs/rebase_read.csv">rebase_read.csv</a></li>
 <li><b>Draw &amp; write</b> — three figures as code, light and dark; PNG byte equality requires the same Python/dependencies/fonts/backend and manifest-derived date (<a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/src/figures.py">src/figures.py</a>); then the <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/docs/decision_memo.md">decision memo</a> and dated release checks (0.05 pp rounding + 0.001 pp index-precision allowance, applied before rounding differences; three unavailable rows are not matches).</li>
 </ol>
@@ -110,12 +112,12 @@ uv venv .venv --python 3.12          # or: python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt   # or: pip install -r requirements.txt
 
-python src/download.py       # 14 Table Builder tables → data/raw/ (gitignored; --force to re-pull)
-python src/build_dataset.py  # staging + 13 checks → data/processed/*.parquet
+python src/download.py --snapshot  # bundled original July bytes; offline replay
+python src/build_dataset.py  # staging + 12 checks → data/processed/*.parquet
 python src/audit.py          # dated release, level/share checks → outputs/
 python src/analysis.py       # split + rebase + sensitivity + reconciliation history → outputs/
 python src/figures.py        # reports/figures/ + docs/img/ (light + dark)</code></pre>
-<p class="cap">Then check <code>outputs/latest_split.csv</code>: <b>Watches &amp; Jewellery</b> reads calculated value contribution <b>+1.207 pp</b>, <b>Supermarkets &amp; Hypermarkets −0.370 pp</b>, and the Total row <b>−1.28%</b> (volume) / <b>+1.46%</b> (prices) for July 2026. July snapshot from the 2026-10-04 pull; these expectations apply to July, not an arbitrary latest row. A later re-pull can move the newest month.</p>
+<p class="cap">Then check <code>outputs/latest_split.csv</code>: <b>Watches &amp; Jewellery</b> reads calculated value contribution <b>+1.207 pp</b>, <b>Supermarkets &amp; Hypermarkets −0.370 pp</b>, and the Total row <b>−1.28%</b> (volume) / <b>+1.46%</b> (current-price sales value) for July 2026. July snapshot from the 2026-10-04 pull; these expectations apply to July, not an arbitrary latest row. A later re-pull can move the newest month.</p>
 
 <p class="note"><b>Limits and residuals.</b> July's +0.0174 pp residual is not a general identity: June's covered +3.3093 pp versus total growth +4.0182% leaves +0.7088 pp. Missing coverage, linked aggregation and rounding can enter the residual. Growth contributions are pp, not index-point changes; volume approximations have no universal ±0.1 pp error bound. The weight swap excludes 13.9% of new weight and does not reconstruct the old-base headline. These aggregates cannot measure customers, company sales or causes. The implied +2.77% value/volume deflator change is not CPI. F&amp;B total is separately −3.26% volume / −1.86% value YoY.</p>
 <p class="cap"><b>Refresh and verification scope.</b> A re-pull updates calculations, not the July release transcription or narrative. Transcribe the matching <code>release-YYYY-MM-tables.csv</code>, update audit selection and expected levels/share, review prose and snapshot locks, and run <code>build_dataset → audit → analysis → figures</code>. Stable LF CSVs require unchanged inputs; PNG bytes are only comparable within the same rendering environment. New execution/publication receipts are tracked in <a href="https://github.com/faizsaifulnizam/retail-sales-split/blob/main/docs/review-remediation.md">review-remediation.md</a>; no fresh network/PDF check is claimed.</p>
@@ -131,6 +133,6 @@ python src/figures.py        # reports/figures/ + docs/img/ (light + dark)</code
 <p>An independent, unofficial analysis by <a href="https://github.com/faizsaifulnizam">Muhammad Faiz Saifulnizam</a>. Data: Retail Sales Index via <a href="https://tablebuilder.singstat.gov.sg/table/TS/M602201">SingStat Table Builder</a> — © Singapore Department of Statistics, Singapore Open Data Licence. Code: MIT. Not a forecast; not causal advice.</p>
 </footer>
 
-</div>
+</main>
 </body>
 </html>

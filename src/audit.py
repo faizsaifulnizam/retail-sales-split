@@ -17,6 +17,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src.publication import promote
+from src.lineage import verify_raw
 RAW = ROOT / "data/raw"
 REF = ROOT / "data/reference"
 OUT = ROOT / "outputs"
@@ -215,6 +218,7 @@ def levels_check():
 
 
 def main():
+    verify_raw(RAW)
     profile()
     rows, bad = cross_check()
     levels, levels_bad = levels_check()
@@ -233,8 +237,7 @@ def main():
                     w = csv.DictWriter(f, fieldnames=list(data[0]), lineterminator="\n")
                     w.writeheader()
                     w.writerows(data)
-            for tmp, path in staged:
-                os.replace(tmp, path)
+            promote(staged)
         finally:
             for tmp, _ in staged:
                 tmp.unlink(missing_ok=True)

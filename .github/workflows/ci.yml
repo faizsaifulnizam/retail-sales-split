@@ -22,8 +22,25 @@ jobs:
       - name: Compile sources
         run: python -m compileall -q src
 
-      - name: Offline stdlib pipeline regressions (raw integration skips when absent)
-        run: python tests/test_pipeline_regressions.py -v
 
       - name: Check committed outputs, figures and assets
         run: python tests/smoke_test.py
+
+  offline:
+    name: frozen dependency-backed acceptance
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install documented pinned dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Restore frozen inputs, reject skips, replay and compare CSVs
+        run: python tests/offline_ci.py

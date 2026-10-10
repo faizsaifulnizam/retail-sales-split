@@ -39,11 +39,14 @@ import json
 import re
 import sys
 import time
+import zipfile
 import urllib.request as u
 from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src.publication import promote
 RAW = ROOT / "data/raw"
 MANIFEST = RAW / "pull_manifest.json"
 
@@ -226,7 +229,7 @@ def _release_page(latest_month):
             f"and-food-beverage-services-index-{mon.lower()}{year}")
 
 
-def write_manifest(infos, retrieved_at):
+def write_manifest(infos, retrieved_at, path=None):
     months = [info["coverage_max"] for info in infos.values() if MREG.match(info["coverage_max"])]
     latest = max(months, key=lambda s: int(s[:4]) * 12 + MONTHS.index(s.split()[1]))
     m = {
@@ -246,7 +249,7 @@ def write_manifest(infos, retrieved_at):
             "role": spec["role"],
             **info,
         }
-    MANIFEST.write_text(json.dumps(m, indent=2), encoding="utf-8")
+    (path or MANIFEST).write_text(json.dumps(m, indent=2), encoding="utf-8")
     print("manifest:", MANIFEST.as_posix())
     for fname, info in m["files"].items():
         print(f"    {fname}: {info['bytes']} bytes · sha256 {info['sha256'][:12]}… · "
@@ -255,8 +258,32 @@ def write_manifest(infos, retrieved_at):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--force", action="store_true", help="re-download even if the files exist")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--force", action="store_true", help="re-download even if the files exist")
+    mode.add_argument('--snapshot', action='store_true', help='restore the reviewed July 2026 exact-byte archive offline')
     args = ap.parse_args()
+
+    if args.snapshot:
+        archive = ROOT / 'data/snapshots/2026-07.zip'
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != 'baba088662048a100d85f5f2d5c8aa0bf6f038c01fe35651ce815c0cd0adfaef':
+            raise ValueError('snapshot archive hash identity mismatch; existing raw and manifest untouched')
+        with zipfile.ZipFile(archive) as bundle:
+            data = {name: bundle.read(name) for name in bundle.namelist()}
+        # Only the reviewed, hash-locked archive is accepted; never extract arbitrary paths.
+        RAW.mkdir(parents=True, exist_ok=True)
+        staged = []
+        try:
+            for name, content in data.items():
+                target = RAW / name
+                temporary = target.with_name(target.name + '.part')
+                staged.append((temporary, target))
+                temporary.write_bytes(content)
+            promote(staged)
+        finally:
+            for temporary, _ in staged:
+                temporary.unlink(missing_ok=True)
+        print('restored July 2026 snapshot; original acquisition manifest unchanged')
+        return
 
     present = {spec["id"]: (RAW / f"tb-{spec['id']}.json") for spec in TABLES}
     if all(p.exists() for p in present.values()) and not args.force:
@@ -272,12 +299,18 @@ def main():
             infos[spec["id"]] = info
         if not ok:
             raise SystemExit("cached raw validation failed — files and manifest left untouched")
-        if MANIFEST.exists():
-            retrieved_at = json.loads(MANIFEST.read_text(encoding="utf-8"))["retrieved_at"]
-        else:
-            retrieved_at = datetime.fromtimestamp(present["M602201"].stat().st_mtime).astimezone().isoformat(timespec="seconds")
+        if not MANIFEST.exists():
+            raise SystemExit("cached raw manifest absent — explicit pull or snapshot restore required")
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        if set(manifest["files"]) != {p.name for p in present.values()} or any(
+                manifest["files"][present[tid].name]["sha256"] != info["sha256"]
+                for tid, info in infos.items()):
+            raise SystemExit("cached raw manifest hash identity mismatch — files and manifest left untouched")
+        retrieved_at = manifest["retrieved_at"]
         # Refresh derived metadata only; never re-date or re-download cached observations.
-        write_manifest(infos, retrieved_at)
+        temporary = MANIFEST.with_suffix('.json.part')
+        write_manifest(infos, retrieved_at, temporary)
+        promote([(temporary, MANIFEST)])
         return
 
     infos = {}
@@ -301,12 +334,13 @@ def main():
             part.unlink(missing_ok=True)
             raise SystemExit(f"tb-{tid}.json failed structure validation — kept existing file:\n  - "
                              + "\n  - ".join(problems))
-        part.replace(out)
         infos[tid] = info
         print(f"  ok: {info['bytes']} bytes · {info['current_rows']}/{info['rows']} current rows · "
               f"coverage {info['coverage_min']} → {info['coverage_max']} · updated {info['data_last_updated']}")
 
-    write_manifest(infos, datetime.now().astimezone().isoformat(timespec="seconds"))
+    temporary = MANIFEST.with_suffix('.json.part')
+    write_manifest(infos, datetime.now().astimezone().isoformat(timespec="seconds"), temporary)
+    promote([(p.with_name(p.name + '.part'), p) for p in present.values()] + [(temporary, MANIFEST)])
 
 
 if __name__ == "__main__":

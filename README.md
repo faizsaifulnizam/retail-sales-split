@@ -116,12 +116,14 @@ uv venv .venv --python 3.12          # or: python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt   # or: pip install -r requirements.txt
 
-python src/download.py       # 14 Table Builder tables → data/raw/ (gitignored; --force to re-pull)
+python src/download.py --snapshot  # verified bundled July bytes; offline, preserves original manifest
 python src/build_dataset.py  # staging + 12 checks → data/processed/*.parquet
 python src/audit.py          # dated release, level/share checks → outputs/
 python src/analysis.py       # split + rebase + sensitivity + reconciliation history → outputs/
 python src/figures.py        # reports/figures/ + docs/img/ (light + dark)
 ```
+
+For the same frozen offline acceptance used by CI, run `python tests/offline_ci.py` after dependency installation. It restores/builds the snapshot before discovery, rejects skipped or empty/incomplete suites, executes the dependency-backed numerical/render regressions and all producer stages, requires all seven regenerated CSVs to equal committed bytes, checks report/site mirrors, and runs the eight artifact smoke checks. The separate stdlib smoke job needs no third-party packages. Hosted Linux CI remains a publication check; same-environment PNG determinism is not cross-platform certification.
 
 For the **July 2026 snapshot**, `outputs/latest_split.csv` shows Watches & Jewellery **+1.207 pp**, Supermarkets **−0.370 pp**, and retail Total **−1.28% volume / +1.46% value**. A later re-pull can move the newest month; these expectations apply to July, not an arbitrary latest row.
 

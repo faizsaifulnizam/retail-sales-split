@@ -25,6 +25,9 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src.publication import promote
+from src.lineage import verify_processed
 OUT = ROOT / "outputs"
 WEIGHTS = ROOT / "data/reference/rss-weights.csv"
 NOT_MONTHLY = ("Computer & Telecommunications Equipment", "Optical Goods & Books", "Others")
@@ -43,13 +46,13 @@ def r3(v):
     return None if v is None else round(float(v), 3)
 
 
-def write_csv(path, rows, cols):
+def write_csv(path, rows, cols, staged):
     tmp = path.with_suffix(path.suffix + ".tmp")
     with tmp.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=cols, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
-    os.replace(tmp, path)
+    staged.append((tmp, path))
     print(f"wrote {path.relative_to(ROOT).as_posix()}  ({len(rows)} rows)")
 
 
@@ -69,6 +72,7 @@ def load_raw(tid):
 
 def main():
     os.chdir(ROOT)
+    verify_processed(ROOT)
     OUT.mkdir(exist_ok=True)
     con = duckdb.connect()
     for name, pq in (("monthly", "data/processed/monthly.parquet"),
@@ -316,19 +320,21 @@ def main():
                 total_yoy_pct=total_yoy, covered_contrib_prices_pp=acc,
                 residual_prices_pp=total_yoy - acc))
 
+    staged = []
     write_csv(OUT / "latest_split.csv", out_rows,
               ["series_group", "industry", "latest_period", "yoy_volume_pct", "yoy_prices_pct",
                "sa_mom_volume_pct", "sa_mom_prices_pct", "prev_yoy_volume_pct", "prev_yoy_prices_pct",
-               "weight_2017_pct", "weight_2025_pct", "contrib_prices_pp", "contrib_volume_approx_pp", "note"])
-    write_csv(OUT / "rebase_read.csv", rebase_rows, ["metric", "value", "note"])
-    write_csv(OUT / "sensitivity.csv", sens_rows, ["variant", "window", "metric", "value", "note"])
+               "weight_2017_pct", "weight_2025_pct", "contrib_prices_pp", "contrib_volume_approx_pp", "note"], staged)
+    write_csv(OUT / "rebase_read.csv", rebase_rows, ["metric", "value", "note"], staged)
+    write_csv(OUT / "sensitivity.csv", sens_rows, ["variant", "window", "metric", "value", "note"], staged)
 
     write_csv(OUT / "contribution_reconciliation.csv", reconciliation,
               ["month", "series_group", "covered_industries", "covered_weight_pct",
-               "total_yoy_pct", "covered_contrib_prices_pp", "residual_prices_pp"])
+               "total_yoy_pct", "covered_contrib_prices_pp", "residual_prices_pp"], staged)
     write_csv(OUT / "tableau_extract.csv", ext_rows,
               ["month", "series_group", "industry", "volume_idx", "volume_sa_idx", "prices_idx",
-               "prices_sa_idx", "yoy_volume_pct", "yoy_prices_pct", "contrib_prices_pp"])
+               "prices_sa_idx", "yoy_volume_pct", "yoy_prices_pct", "contrib_prices_pp"], staged)
+    promote(staged)
 
     # top movers receipt
     ranked = sorted([r for r in out_rows if r["series_group"] == "retail" and r["contrib_prices_pp"] is not None],

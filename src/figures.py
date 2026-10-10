@@ -11,6 +11,7 @@ in-bounds text, suptitle clearance and pairwise annotation overlaps. Run twice a
 before commit (determinism receipt).
 """
 import json
+import math
 import os
 import shutil
 import sys
@@ -25,6 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.style import use_series_style  # noqa: E402
+from src.publication import promote
+from src.lineage import verify_processed
 
 use_series_style()
 
@@ -47,6 +50,7 @@ DARK = dict(ink="#E7E3DC", petrol="#4C93B5", burnt="#D97E4F", teal="#45A08B",
             violet="#A78FC8", brass="#D4B87A", muted="#8B98A5", light="#435D73",
             edge="#14293D", face="#14293D", suffix="-dark")
 T = LIGHT
+PENDING = None
 
 
 def use_palette(p):
@@ -138,13 +142,16 @@ def save(fig, name):
     try:
         fig.savefig(tmp, format="png")
         shutil.copyfile(tmp, site_tmp)
-        os.replace(tmp, p)
-        os.replace(site_tmp, site)
+        if PENDING is None:
+            promote([(tmp, p), (site_tmp, site)])
+        else:
+            PENDING.extend([(tmp, p), (site_tmp, site)])
     finally:
-        tmp.unlink(missing_ok=True)
-        site_tmp.unlink(missing_ok=True)
+        if PENDING is None:
+            tmp.unlink(missing_ok=True)
+            site_tmp.unlink(missing_ok=True)
         plt.close(fig)
-    print(f"wrote {p.as_posix()} + docs/img/{p.name}  ({p.stat().st_size} bytes)")
+    print(f"staged {p.as_posix()} + docs/img/{p.name}")
 
 
 def text_px(s, size_pt):
@@ -176,7 +183,53 @@ def load_split(con):
         raise ValueError(f"snapshot mismatch: latest_split.csv must match parquet month {latest}; rerun analysis")
     out = {}
     for r in rows:
-        out[(r["series_group"], r["industry"])] = r
+        key = (r['series_group'], r['industry'])
+        if key in out:
+            raise ValueError('numeric identity: duplicate split key')
+        out[key] = r
+    with (ROOT / 'data/reference/rss-weights.csv').open(encoding='utf-8') as stream:
+        weights = {(r['series_group'], r['industry']): (float(r['weight_2017_pct']), float(r['weight_2025_pct']))
+                   for r in _csv.DictReader(stream)}
+    expected = set(weights) | {('retail', 'Total'), ('fb', 'Total'),
+                              ('retail', 'Total (Excluding Motor Vehicles, Parts & Accessories)')}
+    if set(out) != expected:
+        raise ValueError('numeric identity: missing/unexpected split keys')
+    metrics = {(r[0], r[1]): r[3:] for r in q(con, 'SELECT * FROM latest_split')}
+    fields = ('yoy_volume_pct', 'yoy_prices_pct', 'sa_mom_volume_pct', 'sa_mom_prices_pct',
+              'prev_yoy_volume_pct', 'prev_yoy_prices_pct')
+    for key, row in out.items():
+        g, name = key
+        unavailable = g == 'retail' and name in ('Computer & Telecommunications Equipment', 'Optical Goods & Books', 'Others')
+        values = list(metrics.get(key, (None,) * 6)) if not unavailable else [None] * 6
+        if name.startswith('Total (Excluding'):
+            values[1], values[5] = q(con, """SELECT
+                (a.value_sgd_m / b.value_sgd_m - 1) * 100,
+                (c.value_sgd_m / d.value_sgd_m - 1) * 100 FROM monthly a
+                JOIN monthly b ON b.series_group=a.series_group AND b.industry=a.industry AND b.period=a.period-INTERVAL 12 MONTH
+                JOIN monthly c ON c.series_group=a.series_group AND c.industry=a.industry AND c.period=a.period-INTERVAL 1 MONTH
+                JOIN monthly d ON d.series_group=a.series_group AND d.industry=a.industry AND d.period=a.period-INTERVAL 13 MONTH
+                WHERE a.industry='Total (Excluding Motor Vehicles, Parts & Accessories)' AND a.period=(SELECT max(period) FROM monthly)""")[0]
+        w17, w25 = weights.get(key, (None, None))
+        cp, cv = None, None
+        if not unavailable and w25 is not None:
+            cp, cv = con.execute("""SELECT ? * (a.prices_idx-b.prices_idx)/t.prices_idx,
+                ? * (a.volume_idx-b.volume_idx)/t.volume_idx FROM monthly a
+                JOIN monthly b ON b.series_group=a.series_group AND b.industry=a.industry AND b.period=a.period-INTERVAL 12 MONTH
+                JOIN monthly t ON t.series_group=a.series_group AND t.industry='Total' AND t.period=b.period
+                WHERE a.series_group=? AND a.industry=? AND a.period=(SELECT max(period) FROM monthly)""", [w25, w25, g, name]).fetchone()
+        numbers = dict(zip(fields, values))
+        numbers.update(weight_2017_pct=w17, weight_2025_pct=w25, contrib_prices_pp=cp, contrib_volume_approx_pp=cv)
+        for field, value in numbers.items():
+            text = row[field]
+            if value is None:
+                if text:
+                    raise ValueError(f'numeric identity: unexpected {key}/{field}')
+            else:
+                rounded = round(value, 3 if field.startswith('contrib_') else 2) if not field.startswith('weight_') else value
+                if not text or not math.isfinite(float(text)) or not math.isclose(float(text), rounded, rel_tol=0, abs_tol=1e-10):
+                    raise ValueError(f'numeric identity mismatch: {key}/{field}; rerun analysis')
+                # Validate the displayed CSV receipt, then format primary precision once.
+                row[field] = value
     return out
 
 
@@ -226,10 +279,11 @@ def fig1_headline(con, canvas_in=9.0):
     ax0.axhline(0, color=T["light"], lw=0.8)
     ax0.plot(x0, yv, color=T["violet"], lw=2.0)
     ax0.plot(x0, yp, color=T["petrol"], lw=2.0)
-    ax0.annotate(f"volume {yv[-1]:+.1f}%", (x0[-1], yv[-1]), xytext=(-6, -12), textcoords="offset points",
-                 fontsize=8.5, color=T["violet"], ha="right", va="top")
-    ax0.annotate(f"prices {yp[-1]:+.1f}%", (x0[-1], yp[-1]), xytext=(-6, 8), textcoords="offset points",
-                 fontsize=8.5, color=T["petrol"], ha="right", va="bottom")
+    volume_above = yv[-1] > yp[-1]
+    ax0.annotate(f"volume {yv[-1]:+.1f}%", (x0[-1], yv[-1]), xytext=(-6, 8 if volume_above else -12), textcoords="offset points",
+                 fontsize=8.5, color=T["violet"], ha="right", va="bottom" if volume_above else "top")
+    ax0.annotate(f"prices {yp[-1]:+.1f}%", (x0[-1], yp[-1]), xytext=(-6, -12 if volume_above else 8), textcoords="offset points",
+                 fontsize=8.5, color=T["petrol"], ha="right", va="top" if volume_above else "bottom")
     ax0.set_title("Year-on-year change, last 3 years (%)", fontsize=10, color=T["muted"])
     ax0.set_ylim(min(yv + yp) - 2.5, max(yv + yp) + 2.5)
     ax0.set_xlim(mdates.date2num(x0[0]) - 30, mdates.date2num(x0[-1]) + 40)
@@ -244,10 +298,11 @@ def fig1_headline(con, canvas_in=9.0):
     ax1.axhline(0, color=T["light"], lw=0.8)
     ax1.plot(x1, mv, color=T["violet"], lw=2.0)
     ax1.plot(x1, mp, color=T["petrol"], lw=2.0)
-    ax1.annotate(f"volume {mv[-1]:+.1f}%", (x1[-1], mv[-1]), xytext=(-6, -12), textcoords="offset points",
-                 fontsize=8.5, color=T["violet"], ha="right", va="top")
-    ax1.annotate(f"prices {mp[-1]:+.1f}%", (x1[-1], mp[-1]), xytext=(-6, 8), textcoords="offset points",
-                 fontsize=8.5, color=T["petrol"], ha="right", va="bottom")
+    volume_above = mv[-1] > mp[-1]
+    ax1.annotate(f"volume {mv[-1]:+.1f}%", (x1[-1], mv[-1]), xytext=(-6, 8 if volume_above else -12), textcoords="offset points",
+                 fontsize=8.5, color=T["violet"], ha="right", va="bottom" if volume_above else "top")
+    ax1.annotate(f"prices {mp[-1]:+.1f}%", (x1[-1], mp[-1]), xytext=(-6, -12 if volume_above else 8), textcoords="offset points",
+                 fontsize=8.5, color=T["petrol"], ha="right", va="top" if volume_above else "bottom")
     ax1.set_title("Month-on-month change, seasonally adjusted (%)", fontsize=10, color=T["muted"])
     ax1.set_ylim(min(mv + mp) - 1.5, max(mv + mp) + 1.5)
     ax1.set_xlim(mdates.date2num(x1[0]) - 30, mdates.date2num(x1[-1]) + 40)
@@ -272,7 +327,7 @@ def fig2_split(con, canvas_in=9.0):
         if g != "retail" or name in ("Total", "Total (Excluding Motor Vehicles, Parts & Accessories)",
                                      "Computer & Telecommunications Equipment", "Optical Goods & Books", "Others"):
             continue
-        if r["yoy_volume_pct"]:
+        if r["yoy_volume_pct"] != "":
             rows.append((name, float(r["yoy_volume_pct"]), float(r["yoy_prices_pct"]), float(r["contrib_prices_pp"])))
     rows.sort(key=lambda r: r[1])
     contrib_map = {r[0]: r[3] for r in rows}
@@ -411,21 +466,31 @@ def fig3_watch(con, canvas_in=9.0):
 
 
 def main():
+    global PENDING
     import os
 
     os.chdir(ROOT)
+    verify_processed(ROOT)
     FIGDIR.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
-    con.execute(f"CREATE OR REPLACE VIEW monthly AS SELECT * FROM read_parquet('{PARQUET_M}')")
-    con.execute(f"CREATE OR REPLACE VIEW quarterly AS SELECT * FROM read_parquet('{PARQUET_Q}')")
+    con.read_parquet(PARQUET_M).create_view('monthly')
+    con.read_parquet(PARQUET_Q).create_view('quarterly')
     con.execute((ROOT / "sql/02_metrics.sql").read_text(encoding="utf-8"))
-    for palette in (LIGHT, DARK):
-        use_palette(palette)
-        use_series_style(dark=(palette is DARK))
-        print(f"-- rendering {'dark' if palette['suffix'] else 'light'} set --")
-        fig1_headline(con)
-        fig2_split(con)
-        fig3_watch(con)
+    PENDING = []
+    try:
+        for palette in (LIGHT, DARK):
+            use_palette(palette)
+            use_series_style(dark=(palette is DARK))
+            print(f"-- rendering {'dark' if palette['suffix'] else 'light'} set --")
+            fig1_headline(con)
+            fig2_split(con)
+            fig3_watch(con)
+        promote(PENDING)
+    finally:
+        for temporary, _ in PENDING:
+            temporary.unlink(missing_ok=True)
+        PENDING = None
+        con.close()
     print("figures done — light + dark")
 
 

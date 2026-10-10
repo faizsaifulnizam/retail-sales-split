@@ -14,6 +14,9 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src.publication import promote
+from src.lineage import verify_raw
 STAGING = ROOT / "sql/01_staging.sql"
 CHECKS = ROOT / "sql/05_checks.sql"
 OUT_DIR = ROOT / "data/processed"
@@ -25,6 +28,7 @@ def q(con, sql):
 
 def main():
     os.chdir(ROOT)  # sql/01 references data/raw and data/reference relatively
+    verify_raw(ROOT / 'data/raw')
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
 
@@ -60,12 +64,13 @@ def main():
         print("checks failed — parquet NOT written (existing files left untouched)")
         sys.exit(1)
 
+    staged = []
     for table, fname in (("monthly", "monthly.parquet"), ("quarterly", "quarterly.parquet")):
         out = OUT_DIR / fname
         tmp = OUT_DIR / (fname + ".tmp")
-        con.sql(f"COPY {table} TO '{tmp.as_posix()}' (FORMAT PARQUET)")
-        os.replace(tmp, out)
-        print(f"wrote: {out.as_posix()}  ({out.stat().st_size} bytes)")
+        con.table(table).write_parquet(str(tmp))
+        staged.append((tmp, out))
+    promote(staged)
 
     cov = q(con, """SELECT max(period), count(DISTINCT industry)
                     FROM monthly WHERE series_group = 'retail' AND volume_idx IS NOT NULL""")[0]

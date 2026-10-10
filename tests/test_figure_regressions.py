@@ -1,5 +1,6 @@
 """Real chart regressions; run with the pinned chart environment."""
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -14,7 +15,8 @@ from src import figures as f
 class FigureRegressionTests(unittest.TestCase):
     def test_split_labels_clear_footnote_and_legend_identifies_bases(self):
         con = f.duckdb.connect()
-        con.execute("CREATE TABLE monthly AS SELECT DATE '2026-07-01' AS period")
+        con.read_parquet(f.PARQUET_M).create_view('monthly')
+        con.execute((ROOT / 'sql/02_metrics.sql').read_text())
         captured = []
         try:
             with patch.object(f, "save", side_effect=lambda fig, name: captured.append(fig)):
@@ -90,6 +92,7 @@ class FigureRegressionTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "outputs").mkdir()
+                shutil.copytree(ROOT / 'data/reference', root / 'data/reference')
                 with (ROOT / "outputs/latest_split.csv").open(encoding="utf-8") as source:
                     rows = list(csv.DictReader(source))
                 for row in rows:
@@ -120,13 +123,17 @@ class FigureRegressionTests(unittest.TestCase):
             self.skipTest("requires local processed data")
         import csv
         con = f.duckdb.connect()
-        con.execute(f"CREATE VIEW monthly AS SELECT * FROM read_parquet('{f.PARQUET_M}')")
+        con.execute('CREATE TABLE monthly AS SELECT * FROM read_parquet(?)', [f.PARQUET_M])
+        con.execute("""UPDATE monthly SET prices_idx=(SELECT prices_idx * (1-0.0146) FROM monthly WHERE series_group='retail' AND industry='Total' AND period=DATE '2025-07-01'),
+            volume_idx=(SELECT volume_idx * (1+0.0128) FROM monthly WHERE series_group='retail' AND industry='Total' AND period=DATE '2025-07-01')
+            WHERE series_group='retail' AND industry='Total' AND period=DATE '2026-07-01'""")
         con.execute((ROOT / "sql/02_metrics.sql").read_text(encoding="utf-8"))
         captured = []
         try:
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "outputs").mkdir()
+                shutil.copytree(ROOT / 'data/reference', root / 'data/reference')
                 with (ROOT / "outputs/latest_split.csv").open(encoding="utf-8") as source:
                     rows = list(csv.DictReader(source))
                 for row in rows:

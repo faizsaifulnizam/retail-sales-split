@@ -2,6 +2,7 @@
 import contextlib
 import csv
 import io
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,14 @@ if os.environ.get('TMPDIR'):
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src import audit, download
+
+
+def resign_fixture(raw):
+    path = raw / 'pull_manifest.json'
+    manifest = json.loads(path.read_text())
+    for name, entry in manifest['files'].items():
+        entry['sha256'] = hashlib.sha256((raw / name).read_bytes()).hexdigest()
+    path.write_text(json.dumps(manifest))
 
 
 class DownloadRegressionTests(unittest.TestCase):
@@ -106,6 +115,7 @@ class AuditSnapshotTests(unittest.TestCase):
         data['Data']['row'][0]['columns'].append({'key': '2026 Aug', 'value': '100'})
         path.write_text(json.dumps(data))
         with self.assertRaisesRegex(ValueError, 'snapshot'):
+            resign_fixture(self.raw)
             audit.main()
         self.assertFalse(list(self.out.iterdir()))
 
@@ -139,6 +149,7 @@ class AuditSnapshotTests(unittest.TestCase):
             if c['key'] == '2026 Jul':
                 c['value'] = '4429'
         path.write_text(json.dumps(data))
+        resign_fixture(self.raw)
         self.assertEqual(audit.main(), 1)
         self.assertTrue(all(p.read_bytes() == b'old\n' for p in self.out.iterdir()))
 
@@ -230,14 +241,24 @@ class AnalysisSnapshotTests(unittest.TestCase):
         self.assertIn('rounding', sens['note'])
 
     def test_june_incomplete_retail_basket_does_not_fail_validation(self):
-        path = self.root / 'data/processed/monthly.parquet'
-        con = duckdb.connect()
-        con.execute(f"CREATE TABLE m AS SELECT * FROM read_parquet('{path.as_posix()}') "
-                    "WHERE period < DATE '2026-07-01'")
-        path.unlink()
-        con.execute(f"COPY m TO '{path.as_posix()}' (FORMAT PARQUET)")
-        con.close()
-        self.analysis.main()
+        # Coherent older snapshot: move both raw and processed, never just parquet.
+        from src import build_dataset
+        for spec in download.TABLES:
+            if spec['freq'] != 'M':
+                continue
+            path = self.root / 'data/raw' / f"tb-{spec['id']}.json"
+            data = json.loads(path.read_text())
+            for row in data['Data']['row']:
+                row['columns'] = [c for c in row['columns'] if c['key'] != '2026 Jul']
+            path.write_text(json.dumps(data))
+        resign_fixture(self.root / 'data/raw')
+        with patch.object(download, 'FLOOR_M', 2026 * 12 + 6), \
+             patch.object(build_dataset, 'ROOT', self.root), \
+             patch.object(build_dataset, 'STAGING', self.root / 'sql/01_staging.sql'), \
+             patch.object(build_dataset, 'CHECKS', self.root / 'sql/05_checks.sql'), \
+             patch.object(build_dataset, 'OUT_DIR', self.root / 'data/processed'):
+            build_dataset.main()
+            self.analysis.main()
         self.assertTrue(self.rows('latest_split.csv'))
 
     def test_missing_latest_volume_preserves_existing_outputs(self):
@@ -250,7 +271,7 @@ class AnalysisSnapshotTests(unittest.TestCase):
         path.unlink()
         con.execute(f"COPY m TO '{path.as_posix()}' (FORMAT PARQUET)")
         con.close()
-        with self.assertRaisesRegex(AssertionError, 'monthly metrics'):
+        with self.assertRaisesRegex(ValueError, 'lineage'):
             self.analysis.main()
         self.assertEqual((self.out / 'latest_split.csv').read_bytes(), b'old\n')
 
@@ -266,7 +287,7 @@ class AnalysisSnapshotTests(unittest.TestCase):
         path.unlink()
         con.execute(f"COPY m TO '{path.as_posix()}' (FORMAT PARQUET)")
         con.close()
-        with self.assertRaisesRegex(AssertionError, 'history coverage'):
+        with self.assertRaisesRegex(ValueError, 'lineage'):
             self.analysis.main()
         self.assertTrue(all(p.read_bytes() == b'old\n' for p in self.out.iterdir()))
 
@@ -342,11 +363,13 @@ class SmokeCorruptionTests(unittest.TestCase):
 
 
 class CIConfigurationTests(unittest.TestCase):
-    def test_ci_runs_offline_stdlib_regressions_without_installation(self):
+    def test_ci_keeps_stdlib_smoke_separate_from_dependency_backed_acceptance(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
-        self.assertIn('python tests/test_pipeline_regressions.py', workflow)
-        self.assertNotIn('pip install', workflow)
-        self.assertNotIn('test_figure_regressions.py', workflow)
+        smoke, offline = workflow.split('  offline:', 1)
+        self.assertIn('python tests/smoke_test.py', smoke)
+        self.assertNotIn('pip install', smoke)
+        self.assertIn('python -m pip install -r requirements.txt', offline)
+        self.assertIn('python tests/offline_ci.py', offline)
 
     def test_csv_attributes_pin_lf(self):
         attrs = ROOT / '.gitattributes'

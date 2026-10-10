@@ -120,12 +120,75 @@ def test_release_check() -> None:
 
 
 def test_rebase_and_sensitivity() -> None:
-    for path, cols, min_rows in ((REBASE_CSV, REBASE_REQUIRED_COLS, 6), (SENS_CSV, SENS_REQUIRED_COLS, 8)):
-        rows = _load_csv(path)
-        assert rows, f"{path.name} has no data rows"
-        missing = cols - set(rows[0].keys())
-        assert not missing, f"{path.name} missing columns: {sorted(missing)}"
-        assert len(rows) >= min_rows, f"{path.name}: only {len(rows)} rows (expected >= {min_rows})"
+    # Independent stdlib/Decimal oracle from calendar-keyed committed index levels.
+    from decimal import Decimal as D
+    extract = _load_csv(EXTRACT_CSV)
+    history = {(r['series_group'], r['industry'], r['month']): r for r in extract}
+    assert len(history) == len(extract), 'duplicate extract keys'
+    latest = max(r['month'] for r in extract)
+    year, month = map(int, latest[:7].split('-'))
+    def prior(months):
+        index = year * 12 + month - 1 - months
+        return f'{index // 12:04d}-{index % 12 + 1:02d}-01'
+    def level(name, field, when=latest):
+        value = D(history[('retail', name, when)][field])
+        assert value.is_finite() and value > 0, 'invalid oracle level'
+        return value
+    def growth(field, lag):
+        return (level('Total', field) / level('Total', field, prior(lag)) - 1) * 100
+    weights = {r['industry']: (D(r['weight_2017_pct']), D(r['weight_2025_pct']))
+               for r in _load_csv(ROOT / 'data/reference/rss-weights.csv') if r['series_group'] == 'retail'}
+    covered = set(weights) - NOT_MONTHLY
+    assert len(covered) == 11
+    def basket(index):
+        current = sum(weights[name][index] * level(name, 'prices_idx') for name in covered)
+        previous = sum(weights[name][index] * level(name, 'prices_idx', prior(12)) for name in covered)
+        return (current / previous - 1) * 100
+    def contribution(name, field, index=1):
+        return weights[name][index] * (level(name, field) - level(name, field, prior(12))) / level('Total', field, prior(12))
+    old, new = basket(0), basket(1)
+    motor = 'Motor Vehicles, Parts & Accessories'
+    rebase = {
+        'basket_yoy_2025_weights_pct': (new, .005),
+        'basket_yoy_2017_weights_pct': (old, .005),
+        'weight_effect_pp': (new - old, .005),
+        'motor_vehicles_weight_2017_pct': (weights[motor][0], 1e-10),
+        'motor_vehicles_weight_2025_pct': (weights[motor][1], 1e-10),
+        'motor_vehicles_contrib_old_weight_pp': (contribution(motor, 'prices_idx', 0), .0005),
+        'motor_vehicles_contrib_new_weight_pp': (contribution(motor, 'prices_idx'), .0005),
+    }
+    rows = _load_csv(REBASE_CSV)
+    assert rows and REBASE_REQUIRED_COLS <= rows[0].keys()
+    assert len(rows) == 8 and {r['metric'] for r in rows} == set(rebase) | {'limit'}, 'rebase key coverage'
+    assert len({r['metric'] for r in rows}) == len(rows), 'duplicate rebase keys'
+    for row in rows:
+        if row['metric'] == 'limit':
+            assert not row['value'] and row['note']
+        else:
+            value, tolerance = rebase[row['metric']]
+            assert abs(_number(row['value']) - float(value)) <= tolerance + 1e-10, row['metric']
+    sensitivity = {
+        ('headline basis — chained volume', 'latest month', 'yoy_pct'): (growth('volume_idx', 12), .005),
+        ('headline basis — current prices', 'latest month', 'yoy_pct'): (growth('prices_idx', 12), .005),
+        ('headline basis — chained volume', 'latest month', 'sa_mom_pct'): (growth('volume_sa_idx', 1), .005),
+        ('headline basis — current prices', 'latest month', 'sa_mom_pct'): (growth('prices_sa_idx', 1), .005),
+        ('SA MoM window — 3-month change', f'{prior(3)} to {latest}', 'sa_3m_pct'): (growth('volume_sa_idx', 3), .005),
+        ('SA MoM window — 3-month change', f'{prior(3)} to {latest}', 'sa_3m_pct_prices'): (growth('prices_sa_idx', 3), .005),
+        ('contribution method — fixed-weight (prices)', 'latest month', 'sum_pp_vs_total_pp'):
+            (sum(contribution(n, 'prices_idx') for n in covered), .00005),
+        ('contribution method — approx (volume)', 'latest month', 'sum_pp_vs_total_pp'):
+            (sum(contribution(n, 'volume_idx') for n in covered), .00005),
+        ('weight set — 2025-based', 'latest month', 'basket_yoy_pct'): (new, .005),
+        ('weight set — 2017-based', 'latest month', 'basket_yoy_pct'): (old, .005),
+    }
+    rows = _load_csv(SENS_CSV)
+    assert rows and SENS_REQUIRED_COLS <= rows[0].keys()
+    keys = [(r['variant'], r['window'], r['metric']) for r in rows]
+    assert len(keys) == len(set(keys)) == len(sensitivity) and set(keys) == set(sensitivity), 'sensitivity key coverage'
+    for key, row in zip(keys, rows):
+        value, tolerance = sensitivity[key]
+        assert abs(_number(row['value']) - float(value)) <= tolerance + 1e-10, key
+
 
 
 def test_tableau_extract() -> None:
